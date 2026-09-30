@@ -1,0 +1,10 @@
+#!/bin/bash
+# Duplicate this file per scenario you want a one-click launcher for (e.g. "Sales Call.command"), then set
+# --role below to that scenario's key from data/profile.json. Double-click the renamed copy to start it.
+# macOS: after duplicating, run `chmod +x "Your Launcher.command"` once so it's double-clickable.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+cd "$(dirname "$0")" || { echo "Cannot find the copilot folder."; read -n 1; exit 1; }
+command -v node >/dev/null || { echo "node not found. Install Node, then try again."; read -n 1; exit 1; }
+command -v ffmpeg >/dev/null || { echo "ffmpeg not found (brew install ffmpeg)."; read -n 1; exit 1; }
+printf '\033[3J\033[H\033[2J'   # fresh start: clear the screen and its scrollback
+npm run --silent listen -- --role YOUR_SCENARIO_KEY --save
