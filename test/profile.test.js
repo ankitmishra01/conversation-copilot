@@ -28,6 +28,7 @@ function run() {
     assert.strictEqual(profile.getScenario("real-one").label, "Real scenario");
   } finally {
     fs.unlinkSync(REAL_PROFILE_PATH);
+    delete require.cache[REAL_PROFILE_PATH];
     profile.resetCache();
   }
 
