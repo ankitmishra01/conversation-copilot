@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Conversation Copilot</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Conversation Copilot</a>
+    <nav>
+      <a href="#translator">Live copilot</a>
+      <a href="#answerSection">Answer coach</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Live conversation copilot</p>
+          <h1>Turn live speech into a goal-directed answer.</h1>
+          <p>Listen, translate if needed, understand the intent, and rehearse a concise answer from one focused console.</p>
+        </div>
+        <div class="hero-stack" aria-label="Workflow">
+          <span>01 Listen</span>
+          <span>02 Understand</span>
+          <span>03 Answer</span>
+        </div>
+      </div>
+      <div class="notice">
+        Browser v1 listens through the microphone. For YouTube or laptop audio, play the audio through speakers or route audio to the mic. Direct system-audio capture needs a native app, extension, or transcription backend.
+      </div>
+    </section>
+
+    <section class="workspace" id="translator">
+      <div class="panel control-panel">
+        <div class="panel-kicker">
+          <h2>Capture</h2>
+          <span id="status">Ready.</span>
+        </div>
+        <p id="accessNotice" class="access-notice"></p>
+        <label>Scenario
+          <select id="role"></select>
+        </label>
+        <label>Content type
+          <select id="mode">
+            <option value="conversation">Live conversation</option>
+            <option value="recording">Recorded audio</option>
+          </select>
+        </label>
+        <div class="button-row">
+          <button id="start">Start listening</button>
+          <button id="pauseMine" type="button" class="secondary-button listen-toggle">Pause my voice</button>
+          <button id="stop">Stop</button>
+          <button id="clear">Clear</button>
+        </div>
+        <div class="button-row">
+          <button id="compact" type="button" class="secondary-button">Compact</button>
+          <button id="overlay" type="button" class="secondary-button">Corner overlay</button>
+          <button id="popout" type="button" class="secondary-button">Mini window</button>
+        </div>
+        <label class="check" title="Answer automatically when they pause"><input type="checkbox" id="autoAnswer" checked> <span>Auto-answer<span class="check-long"> when they pause</span></span></label>
+        <p class="small">Tip: Chrome supports the Web Speech API best. If dictation is blocked, use HTTPS or localhost and allow microphone access.</p>
+      </div>
+
+      <div class="panel transcript-panel">
+        <h2 id="transcriptTitle">Live transcript</h2>
+        <textarea id="transcript" placeholder="Live transcript appears here. You can also paste text manually."></textarea>
+      </div>
+
+      <div class="panel translation-panel">
+        <div class="panel-head">
+          <h2 id="translationTitle">Notes</h2>
+          <button id="translate">Translate now</button>
+        </div>
+        <p id="topic" class="topic-pill">Topic: listening</p>
+        <div id="flow" class="flow" aria-live="polite"></div>
+        <div class="focus-card" aria-live="polite">
+          <h3>Focus now</h3>
+          <p id="focusSummary">Listen for the question, then anchor your answer in one proof point.</p>
+          <ul id="focusBullets">
+            <li>Answer directly.</li>
+            <li>Give one concrete example.</li>
+            <li>Link it back to your goal.</li>
+          </ul>
+        </div>
+        <p id="translation" class="translation-output">Translation or notes will appear here.</p>
+        <h3>What it means for your reply</h3>
+        <p id="intent">The response plan will appear here.</p>
+      </div>
+    </section>
+
+    <section class="answer-lab" id="answerSection">
+      <div class="panel">
+        <h2>Suggested answer block</h2>
+        <dl class="answer-grid">
+          <div><dt>Start with</dt><dd id="direct">Waiting for input.</dd></div>
+          <div><dt>Proof to use</dt><dd id="proof">Waiting for input.</dd></div>
+          <div><dt id="phraseLabel">Suggested answer</dt><dd id="phrase">Waiting for input.</dd><ul id="sayPoints" class="say-points"></ul><dd id="phraseGloss" class="gloss" hidden></dd><dd id="phraseWatch" class="watch" hidden></dd></div>
+          <div><dt>Follow-up question</dt><dd id="followup">Waiting for input.</dd></div>
+        </dl>
+      </div>
+      <div class="panel context-panel">
+        <div class="panel-head">
+          <h2>Background context used</h2>
+          <span id="profileStatus" class="pill">Loading profile</span>
+        </div>
+        <p id="fitSummary" class="context-summary">Scenario-specific background will appear here once a scenario is selected.</p>
+        <div class="context-columns">
+          <div>
+            <h3>Proof bank</h3>
+            <ul id="proofBank" class="tight-list"></ul>
+          </div>
+          <div>
+            <h3>Preferred verbs</h3>
+            <p id="verbBank" class="verb-bank">clarify, prioritize, align, ship, measure</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 id="answerTitle">Your practice answer</h2>
+        <textarea id="answer" placeholder="Draft your answer here, then score it."></textarea>
+        <div class="button-row">
+          <button id="score">Score answer</button>
+          <button id="copy">Copy phrase</button>
+        </div>
+        <p id="scoreText">Score will appear here.</p>
+        <ul id="feedback"></ul>
+      </div>
+    </section>
+  </main>
+  <p id="popoutNote" class="popout-note" hidden>The copilot is in the floating window. Close it to bring it back here.</p>
+</body>
+</html>
