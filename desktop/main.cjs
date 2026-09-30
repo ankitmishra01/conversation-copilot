@@ -1,6 +1,6 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, screen, session } = require("electron");
 
-const COPILOT_URL = process.env.COPILOT_URL || "https://french-audio-copilot.vercel.app/?desktop=1&overlay=1&compact=1&direction=fr-en";
+const COPILOT_URL = process.env.COPILOT_URL || "http://localhost:4174/?desktop=1&overlay=1&compact=1";
 
 let win;
 let clickThrough = false;
@@ -24,7 +24,7 @@ function createWindow() {
     skipTaskbar: false,
     resizable: true,
     movable: true,
-    title: "French Audio Copilot Overlay",
+    title: "Conversation Copilot Overlay",
     backgroundColor: "#00000000",
     vibrancy: "hud",
     visualEffectState: "active",
