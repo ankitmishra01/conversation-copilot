@@ -74,6 +74,11 @@ sales-call notes scenario, and a Spanish-to-English translation scenario.
 Pick as many `scenarios` as you want. Anything with `language.source === language.target` runs in
 **notes mode** (live transcript + coaching, no translation panel). Anything else translates both ways.
 
+**What the browser can see:** the UI fetches a redacted view of your profile from `/api/profile` — it
+never sees `settledAnswers`, `neverSay`, `honestGap`, or `watchOuts`. Those stay server-side, read only
+by `/api/translate`, so the other party on a call (even over a shared screen) can't open devtools and
+read your negotiation stance. `data/profile.json` itself is also never served as a static file.
+
 ## Live use
 
 Open the deployed site, pick your scenario from the **Scenario** dropdown, press **Start listening**, and
@@ -85,6 +90,10 @@ For the most accurate transcription, use the terminal listener instead of the br
 ```bash
 npm run listen -- --role your-scenario-key --save
 ```
+
+Once deployed, set `COPILOT_URL` in `.env.local` (or pass `--url`) to your deployed URL — the terminal
+listener and `npm run credits` otherwise talk to `http://localhost:3000`, where nothing is listening
+unless you're running `vercel dev`.
 
 Duplicate `Copilot Launcher.command.template`, rename it, set its `--role` to a scenario key, and
 `chmod +x` it for a one-click launcher per scenario.

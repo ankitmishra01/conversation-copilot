@@ -4,7 +4,7 @@
   "private": true,
   "description": "A configurable live-conversation copilot: transcribes, optionally translates, and coaches you in real time toward your own goal, using your own context.",
   "scripts": {
-    "check": "node --check app.js && node --check api/translate.js && node --check api/transcribe.js && node --check api/_access.js && node --check api/_memory.js && node --check api/_profile.js && node --check scripts/sync-memory.js && node --check scripts/listen.js && node --check scripts/credits.js && node --check desktop/main.cjs && node --check desktop/preload.cjs",
+    "check": "node --check app.js && node --check api/translate.js && node --check api/transcribe.js && node --check api/profile.js && node --check api/_access.js && node --check api/_memory.js && node --check api/_profile.js && node --check scripts/sync-memory.js && node --check scripts/listen.js && node --check scripts/credits.js && node --check desktop/main.cjs && node --check desktop/preload.cjs",
     "test": "node test/run.js",
     "desktop": "electron desktop/main.cjs",
     "sync-memory": "node scripts/sync-memory.js",

@@ -1,22 +1,24 @@
 // api/_profile.js
 // Loads the user's copilot configuration. Priority: a synced private file (api/_data/profile.json),
 // then the user's own local file (data/profile.json), then the shipped example (demo mode).
-const path = require("path");
-
-function tryLoad(relPath) {
-  try {
-    return require(path.join(__dirname, "..", relPath));
-  } catch (e) {
-    return null;
-  }
+// Each require below uses a static, literal path (never one built from a variable) so bundlers —
+// notably Vercel's serverless function file tracer — can find and include these files at deploy time.
+function loadSynced() {
+  try { return require("./_data/profile.json"); } catch (e) { return null; }
+}
+function loadLocal() {
+  try { return require("../data/profile.json"); } catch (e) { return null; }
+}
+function loadExample() {
+  try { return require("../data/profile.example.json"); } catch (e) { return null; }
 }
 
 let cached = null;
 function load() {
   if (cached) return cached;
-  const synced = tryLoad("api/_data/profile.json");
-  const local = tryLoad("data/profile.json");
-  const example = tryLoad("data/profile.example.json");
+  const synced = loadSynced();
+  const local = loadLocal();
+  const example = loadExample();
   const data = synced || local || example;
   cached = { data: data || null, demo: !synced && !local && Boolean(example) };
   return cached;

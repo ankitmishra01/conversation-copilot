@@ -57,6 +57,15 @@
     return profileData.scenarios[roleEl.value] || (keys.length ? profileData.scenarios[keys[0]] : null);
   }
 
+  // Mirrors api/translate.js's scenarioLanguages(): a missing target falls back to source, and equal
+  // source/target means notes mode (no translation).
+  function languagePairFor(scenario) {
+    var lang = (scenario && scenario.language) || {};
+    var source = lang.source || "en";
+    var target = lang.target || source;
+    return { source: source, target: target, notesMode: source === target };
+  }
+
   var SPEECH_LOCALES = { en: "en-US", fr: "fr-CA", es: "es-ES", de: "de-DE", pt: "pt-BR", it: "it-IT" };
   function speechLocaleFor(code) {
     return SPEECH_LOCALES[code] || (code ? code + "-US" : "en-US");
@@ -258,7 +267,7 @@
   function renderContextPanel() {
     var scenario = activeScenario();
     var verbs = preferredVerbs();
-    if (profileStatus) profileStatus.textContent = profileData ? (profileData.you ? "Profile loaded" : "Profile has no 'you' section yet") : "Profile fallback";
+    if (profileStatus) profileStatus.textContent = !profileData ? "Profile fallback" : profileData.demo ? "Demo data — edit data/profile.json" : profileData.you ? "Profile loaded" : "Profile has no 'you' section yet";
     if (verbBank) verbBank.textContent = verbs.join(", ");
     if (!fitSummary || !proofBank) return;
     proofBank.innerHTML = "";
@@ -295,7 +304,10 @@
     text = latest(text, 400);
     var scenario = activeScenario();
     var style = (profileData && profileData.style) || {};
-    translationEl.textContent = payload && payload.translation ? payload.translation : (text ? "Waiting for the AI translation..." : "Translation or notes will appear here.");
+    var pair = languagePairFor(scenario);
+    translationEl.textContent = payload && payload.translation ? payload.translation
+      : pair.notesMode ? (text || "Notes will appear here as you talk.")
+      : (text ? "Waiting for the AI translation..." : "Translation or notes will appear here.");
     focusSummaryEl.textContent = payload && payload.focus ? payload.focus : "Configure AI_GATEWAY_API_KEY for live coaching, or write your own notes here.";
     renderFocusBullets(payload && payload.bullets ? payload.bullets : null);
     if (payload && payload.topic) setTopic(payload.topic);
@@ -311,12 +323,13 @@
 
   function renderSayExtras(payload) {
     var ai = payload && payload.mode === "ai-gateway";
+    var pair = languagePairFor(activeScenario());
     if (ai) {
-      var lang = payload.phraseLang === "en" ? "English" : "French";
-      phraseLabel.textContent = "Say this (" + lang + ")";
+      phraseLabel.textContent = "Say this (" + (payload.phraseLang || pair.source).toUpperCase() + ")";
     }
     if (phraseGlossEl) {
-      var other = ai && payload.phraseOther ? (payload.phraseLang === "en" ? "En français : " : "In English: ") + payload.phraseOther : "";
+      var otherLang = payload.phraseLang === pair.target ? pair.source : pair.target;
+      var other = ai && payload.phraseOther ? "In " + otherLang.toUpperCase() + ": " + payload.phraseOther : "";
       phraseGlossEl.textContent = other;
       phraseGlossEl.hidden = !other;
     }
@@ -329,10 +342,9 @@
 
   function renderScenarioLabels() {
     var scenario = activeScenario();
-    var lang = (scenario && scenario.language) || { source: "en", target: "en" };
-    var notesMode = lang.source === lang.target;
-    transcriptTitle.textContent = notesMode ? "Live transcript" : (lang.source.toUpperCase() + " transcript");
-    translationTitle.textContent = notesMode ? "Notes" : (lang.target.toUpperCase() + " meaning");
+    var pair = languagePairFor(scenario);
+    transcriptTitle.textContent = pair.notesMode ? "Live transcript" : (pair.source.toUpperCase() + " transcript");
+    translationTitle.textContent = pair.notesMode ? "Notes" : (pair.target.toUpperCase() + " meaning");
     phraseLabel.textContent = "Suggested answer";
     answerTitle.textContent = "Your practice answer";
     transcriptEl.placeholder = "Live transcript appears here. You can also paste text manually.";
@@ -533,8 +545,16 @@
       statusEl.textContent = "Local static fallback active.";
       return;
     }
-    statusEl.textContent = opts.auto ? "Translating what they just said..." : "Translating...";
-    fastTranslate(addFlow(text), text);
+    var notesMode = languagePairFor(activeScenario()).notesMode;
+    if (notesMode) {
+      var noteItem = addFlow(text);
+      noteItem.en = text;
+      renderFlow();
+      statusEl.textContent = opts.auto ? "Noted." : "Ready.";
+    } else {
+      statusEl.textContent = opts.auto ? "Translating what they just said..." : "Translating...";
+      fastTranslate(addFlow(text), text);
+    }
     if (autoBusy || (opts.auto && Date.now() - lastFullAt < fullGapMs())) {
       // One full answer at a time, at most one per few seconds (the gateway rate-limits bursts).
       // The English feed above is unaffected; the newest speech is answered as soon as allowed.
@@ -586,9 +606,8 @@
   }
 
   function listeningMessage() {
-    var scenario = activeScenario();
-    var source = scenario && scenario.language ? scenario.language.source : "en";
-    return "Listening for " + source.toUpperCase() + ". " + (autoAnswerEl && autoAnswerEl.checked ? "I will answer when they pause." : "Press Translate now for an answer.");
+    var pair = languagePairFor(activeScenario());
+    return "Listening for " + pair.source.toUpperCase() + ". " + (autoAnswerEl && autoAnswerEl.checked ? "I will answer when they pause." : "Press Translate now for an answer.");
   }
 
   function scheduleRestart() {
@@ -617,7 +636,7 @@
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       wantListening = false;
-      statusEl.textContent = "Speech recognition is not supported in this browser. Paste French text instead.";
+      statusEl.textContent = "Speech recognition is not supported in this browser. Paste text into the transcript instead.";
       return;
     }
     stopListening();
@@ -628,8 +647,7 @@
     autoOffset = Math.max(0, base.length - pendingChars);
     rec.startedAt = Date.now();
     recognition = rec;
-    var scenarioForSpeech = activeScenario();
-    rec.lang = speechLocaleFor(scenarioForSpeech && scenarioForSpeech.language ? scenarioForSpeech.language.source : "en");
+    rec.lang = speechLocaleFor(languagePairFor(activeScenario()).source);
     rec.continuous = true;
     rec.interimResults = true;
     statusEl.textContent = listeningMessage();
@@ -780,7 +798,7 @@
     lastHistoryText = "";
     setTopic("listening");
     focusSummaryEl.textContent = "Listen for the question, then anchor your answer in one proof point.";
-    renderFocusBullets(["Expliquez le besoin.", "Donnez une preuve concrète.", "Faites le lien avec le rôle."]);
+    renderFocusBullets(["Answer directly.", "Give one concrete example.", "Link it back to your goal."]);
     translationEl.textContent = "Translation will appear here.";
     intentEl.textContent = "The response plan will appear here.";
     updateAnswerBlock("", null);
@@ -925,10 +943,10 @@
     });
   }
 
-  fetch("/data/profile.json", { cache: "no-store" }).then(function (res) {
-    if (!res.ok) throw new Error("profile");
+  fetch("/api/profile", { cache: "no-store", headers: apiHeaders() }).then(function (res) {
     return res.json();
   }).then(function (profile) {
+    if (profile.error) throw new Error(profile.error);
     profileData = profile;
     populateScenarioOptions();
     renderAccessState(null);

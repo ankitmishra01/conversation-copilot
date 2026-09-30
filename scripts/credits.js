@@ -2,9 +2,13 @@
 // Shows the AI Gateway credit balance and which credential/models the live deployment uses. Key-protected.
 const fs = require("fs");
 const path = require("path");
-const BASE = process.env.COPILOT_URL || "http://localhost:3000";
+function envLocal() {
+  try { return fs.readFileSync(path.join(__dirname, "..", ".env.local"), "utf8"); } catch (e) { return ""; }
+}
+let BASE = process.env.COPILOT_URL || "";
+if (!BASE) BASE = (/^COPILOT_URL=(.+)$/m.exec(envLocal()) || [])[1] || "http://localhost:3000";
 let key = process.env.COPILOT_KEY || "";
-if (!key) { try { key = (/^COPILOT_KEY=(.+)$/m.exec(fs.readFileSync(path.join(__dirname, "..", ".env.local"), "utf8")) || [])[1] || ""; } catch (e) { /* none */ } }
+if (!key) key = (/^COPILOT_KEY=(.+)$/m.exec(envLocal()) || [])[1] || "";
 fetch(BASE + "/api/translate", { method: "POST", headers: { "Content-Type": "application/json", "x-copilot-key": key.trim() }, body: JSON.stringify({ billing: true }) })
   .then((r) => r.json())
   .then((d) => {

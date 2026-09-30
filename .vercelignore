@@ -1,0 +1,10 @@
+node_modules
+transcripts
+test
+.git
+.gstack
+.env
+.env.local
+.env*.local
+data/profile.json
+api/_data

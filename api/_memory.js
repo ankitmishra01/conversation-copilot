@@ -39,13 +39,21 @@ function normalize(text) {
   return String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
+// A trigger must match a whole word or whole phrase in the text, never a substring inside another word
+// ("rate" must not match "strategy" or "integrate"; "pay" must not match "paying").
+function matchesTrigger(text, term) {
+  const t = normalize(term).replace(/[^a-z0-9']+/g, " ").trim();
+  if (!t) return false;
+  const padded = " " + normalize(text).replace(/[^a-z0-9']+/g, " ").trim() + " ";
+  return padded.indexOf(" " + t + " ") !== -1;
+}
+
 function watchFor(scenarioKey, text) {
   const scenario = profile.getScenario(scenarioKey);
   if (!scenario || !Array.isArray(scenario.watchOuts)) return "";
-  const q = normalize(text) + " ";
   const found = [];
   scenario.watchOuts.forEach((w) => {
-    const hit = (w.triggers || []).some((t) => q.indexOf(normalize(t)) !== -1);
+    const hit = (w.triggers || []).some((t) => matchesTrigger(text, t));
     if (hit && w.tip) found.push(w.topic + ": " + w.tip);
   });
   return found.join(" | ").slice(0, 520);
@@ -54,8 +62,7 @@ function watchFor(scenarioKey, text) {
 function overrideFor(scenarioKey, text, langSide) {
   const scenario = profile.getScenario(scenarioKey);
   if (!scenario || !Array.isArray(scenario.watchOuts)) return null;
-  const q = normalize(text) + " ";
-  const hit = scenario.watchOuts.find((w) => (w.triggers || []).some((t) => q.indexOf(normalize(t)) !== -1) && w.fixedLine);
+  const hit = scenario.watchOuts.find((w) => (w.triggers || []).some((t) => matchesTrigger(text, t)) && w.fixedLine);
   if (!hit) return null;
   const say = langSide === "target" ? (hit.fixedLine.other || hit.fixedLine.primary) : hit.fixedLine.primary;
   const sayOther = langSide === "target" ? hit.fixedLine.primary : (hit.fixedLine.other || hit.fixedLine.primary);

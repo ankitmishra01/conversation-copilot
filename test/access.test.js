@@ -31,6 +31,21 @@ async function run() {
   delete process.env.COPILOT_RECALL;
   delete process.env.COPILOT_ACTIVE_UNTIL;
 
+  // A reserve set without an expiry applies indefinitely, not "never" (a $5 reserve with no expiry
+  // must actually reject a request against a $1 balance, not silently no-op).
+  process.env.COPILOT_RESERVE_USD = "5";
+  access.resetReserveCache();
+  const realFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ balance: 1 }) });
+  try {
+    const guard2 = await access.reserveGuard("fake-token");
+    assert.strictEqual(guard2.ok, false, "a reserve set without COPILOT_RESERVE_UNTIL must still apply");
+  } finally {
+    global.fetch = realFetch;
+    delete process.env.COPILOT_RESERVE_USD;
+    access.resetReserveCache();
+  }
+
   // keyOk: no COPILOT_KEY configured means every request passes.
   delete process.env.COPILOT_KEY;
   assert.strictEqual(access.keyOk({ headers: {} }), true);

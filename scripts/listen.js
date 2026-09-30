@@ -22,19 +22,24 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf("--" + name); return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : fallback; };
 const flag = (name) => args.indexOf("--" + name) !== -1;
 
+function envLocal() {
+  try { return fs.readFileSync(path.join(__dirname, "..", ".env.local"), "utf8"); } catch (e) { return ""; }
+}
 function loadKey() {
   if (opt("key")) return opt("key");
   if (process.env.COPILOT_KEY) return process.env.COPILOT_KEY;
-  try {
-    const env = fs.readFileSync(path.join(__dirname, "..", ".env.local"), "utf8");
-    const m = /^COPILOT_KEY=(.+)$/m.exec(env);
-    if (m) return m[1].trim();
-  } catch (e) { /* no file */ }
-  return "";
+  const m = /^COPILOT_KEY=(.+)$/m.exec(envLocal());
+  return m ? m[1].trim() : "";
+}
+function loadUrl() {
+  if (opt("url")) return opt("url");
+  if (process.env.COPILOT_URL) return process.env.COPILOT_URL;
+  const m = /^COPILOT_URL=(.+)$/m.exec(envLocal());
+  return m ? m[1].trim() : "http://localhost:3000";
 }
 
 const profile = require("../api/_profile");
-const BASE = (opt("url", process.env.COPILOT_URL || "http://localhost:3000")).replace(/\/$/, "");
+const BASE = loadUrl().replace(/\/$/, "");
 const KEY = loadKey();
 const scenarioKeys = Object.keys(profile.listScenarios());
 const ROLE = opt("role", scenarioKeys[0] || "general");
@@ -47,6 +52,9 @@ const PLAIN = flag("plain") || !process.stdout.isTTY;
 const SAVE = flag("save") ? path.join(__dirname, "..", "transcripts", new Date().toISOString().replace(/[:.]/g, "-") + ".md") : "";
 const activeScenario = profile.getScenario(ROLE);
 const ROLE_LABEL = (activeScenario && activeScenario.label) || ROLE;
+const SCENARIO_LANG = (activeScenario && activeScenario.language) || {};
+// Notes-mode scenarios (source === target) never translate; the server refuses with translation_not_applicable.
+const NOTES_MODE = Boolean(SCENARIO_LANG.source) && SCENARIO_LANG.source === SCENARIO_LANG.target;
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 function saveLine(text) { if (!SAVE) return; try { fs.mkdirSync(path.dirname(SAVE), { recursive: true }); fs.appendFileSync(SAVE, text + "\n"); } catch (e) { /* not fatal */ } }
 
@@ -55,7 +63,7 @@ if (flag("list-devices")) {
   console.log((out.stderr || "").split("\n").filter((l) => /AVFoundation audio|\[\d+\]/.test(l) && !/video|Camera|Capture screen/.test(l)).join("\n"));
   process.exit(0);
 }
-if (!KEY) { console.error("No private key found. Set COPILOT_KEY, pass --key, or keep .env.local next to the repo."); process.exit(1); }
+if (!KEY) console.log("No COPILOT_KEY configured — requests will be sent without one. That's fine unless your deployment requires a key.");
 
 // ---------- state ----------
 const startedAt = Date.now();
@@ -369,7 +377,7 @@ function onText(text, apiLang) {
   coachWords += text.split(/\s+/).length;
   if (switched) { status = lang === "fr" ? "The call switched to FRENCH: translations and extra help are on." : "The call switched to ENGLISH: plain English transcript and suggestions."; plainLog("!!!", status); }
   else status = lang === "fr" ? "Translating..." : "Listening...";
-  if (lang === "fr") fastTranslate(item); else saveLine("- **EN** " + text);
+  if (!NOTES_MODE && lang === "fr") fastTranslate(item); else saveLine("- **EN** " + text);
   queueFull(text, item, lang);
   render();
 }
@@ -380,7 +388,7 @@ async function fastTranslate(item) {
   for (let attempt = 0; attempt <= waits.length && !item.en; attempt += 1) {
     try {
       const prev = feed[feed.indexOf(item) - 1];
-      const r = await post("/api/translate", { text: item.fr, previous: prev ? prev.fr : "", direction: "fr-en", fast: true, useAi: true });
+      const r = await post("/api/translate", { text: item.fr, previous: prev ? prev.fr : "", role: ROLE, fast: true, useAi: true });
       if (noteReserve(r)) { item.en = "(paused: credit reserve)"; item.failed = false; break; }
       if (r.mode === "ai-fast" && r.translation) { reserveHold = false; item.en = r.translation; plainLog("EN ", r.translation); saveLine("- **FR** " + item.fr + "\n  **EN** " + r.translation); status = "Listening..."; break; }
       stats.fastErr += 1; stats.lastErr = r.error || "fast_failed";
@@ -397,7 +405,7 @@ function scheduleLateRetry(item, n) {
   setTimeout(async () => {
     if (item.en || !feed.includes(item)) return;
     try {
-      const r = await post("/api/translate", { text: item.fr, direction: "fr-en", fast: true, useAi: true });
+      const r = await post("/api/translate", { text: item.fr, role: ROLE, fast: true, useAi: true });
       if (r.mode === "ai-fast" && r.translation) { item.en = r.translation; item.failed = false; saveLine("- **FR** " + item.fr + "\n  **EN** " + r.translation); render(); return; }
     } catch (e) { /* try again */ }
     scheduleLateRetry(item, n + 1);
@@ -415,7 +423,7 @@ async function flushFull() {
   if (wait > 0) { setTimeout(flushFull, wait + 30); return; }
   const text = pendingText, items = pendingItems, lang = pendingLang; pendingText = ""; pendingItems = []; fullBusy = true; lastFullAt = Date.now(); inflight += 1;
   try {
-    const r = await post("/api/translate", { text, mode: "interview", role: ROLE, direction: lang === "fr" ? "fr-en" : "en-fr", conversation: { currentTopic: "", recent: feed.slice(-4).map((f) => ({ topic: "", text: f.fr })) }, useAi: true });
+    const r = await post("/api/translate", { text, mode: "interview", role: ROLE, conversation: { currentTopic: "", recent: feed.slice(-4).map((f) => ({ topic: "", text: f.fr })) }, useAi: true });
     if (noteReserve(r)) { /* nothing spent; the previous answer stays on screen */ }
     else if (r.mode === "ai-gateway") {
       reserveHold = false;

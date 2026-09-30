@@ -40,10 +40,14 @@ function accessState() {
 
 const RESERVE_MARGIN_USD = 0.05;
 const reserveCache = { at: 0, balance: null };
+// A reserve set without an expiry applies indefinitely (until COPILOT_RESERVE_UNTIL is set or the
+// reserve is cleared) rather than silently never applying — a reserve you configured protecting nothing
+// would defeat the point of setting it.
+const FAR_FUTURE_MS = Date.parse("2099-12-31T00:00:00Z");
 function reserveConfig() {
   const usd = process.env.COPILOT_RESERVE_USD !== undefined ? Number(process.env.COPILOT_RESERVE_USD) : 0;
   const untilRaw = process.env.COPILOT_RESERVE_UNTIL;
-  const untilMs = untilRaw ? Date.parse(untilRaw) : 0;
+  const untilMs = untilRaw ? Date.parse(untilRaw) : (usd > 0 ? FAR_FUTURE_MS : 0);
   return { usd: Number.isFinite(usd) ? usd : 0, untilMs: Number.isFinite(untilMs) ? untilMs : 0 };
 }
 
