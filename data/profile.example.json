@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "you": {
+    "name": "Jordan Rivera",
+    "role": "candidate",
+    "positioning": "Example profile: a product manager pitching for a Series B startup's Head of Growth role.",
+    "background": [
+      {
+        "label": "Acme Analytics",
+        "proofPoints": ["Grew signups 4x in one year", "Built the onboarding funnel from scratch"],
+        "usefulFor": ["all"]
+      },
+      {
+        "label": "Bright Robotics",
+        "proofPoints": ["Shipped a hardware+software product to 200 retail stores"],
+        "usefulFor": ["job-interview-example"]
+      }
+    ]
+  },
+  "scenarios": {
+    "job-interview-example": {
+      "label": "Example Co — Head of Growth interview",
+      "goal": "Get the offer",
+      "language": { "source": "en", "target": "en" },
+      "domainVocabulary": ["growth", "retention", "activation", "funnel"],
+      "fitSummary": "Position yourself as an operator who has grown a funnel from zero, not just studied one.",
+      "proofBank": ["4x signups in one year at Acme Analytics", "Shipped hardware+software to 200 stores at Bright Robotics"],
+      "honestGap": "No formal experience running paid acquisition at seven-figure budgets. Bridge: strong organic/product-led growth results and a fast learning method.",
+      "questionsToAsk": ["What does success look like in the first 90 days?", "How does growth work with product and sales today?"],
+      "settledAnswers": ["Compensation: base range $140-160K, open to full package.", "Start date: two weeks' notice."],
+      "neverSay": ["Don't claim you ran the paid acquisition budget yourself; you advised on it."],
+      "watchOuts": [
+        {
+          "topic": "Compensation",
+          "triggers": ["salary", "compensation", "pay", "rate"],
+          "fixedLine": { "primary": "I'm looking at a base in the $140 to 160K range, and I'm flexible on the full package." },
+          "tip": "Give a range only when asked directly."
+        }
+      ]
+    },
+    "sales-call-notes-example": {
+      "label": "Example Co — discovery call notes",
+      "goal": "Qualify the deal and book a technical demo",
+      "language": { "source": "en", "target": "en" },
+      "domainVocabulary": ["integration", "procurement", "security review"],
+      "fitSummary": "Same-language notes mode: no translation, just a live transcript plus tactical prompts toward booking the demo.",
+      "proofBank": ["Case study: cut onboarding time 60% for a similar-sized customer"],
+      "honestGap": "Pricing is above their stated budget. Bridge: offer the pilot tier and revisit at renewal.",
+      "questionsToAsk": ["Who else needs to sign off on a purchase like this?"],
+      "settledAnswers": ["Pricing floor: no discount below the pilot tier without approval."],
+      "neverSay": ["Don't promise a delivery date before checking with delivery."],
+      "watchOuts": [
+        {
+          "topic": "Pricing",
+          "triggers": ["discount", "price", "cost"],
+          "fixedLine": { "primary": "I can put together pilot pricing and get you an exact number by tomorrow." },
+          "tip": "Never quote a discount live; always follow up in writing."
+        }
+      ]
+    },
+    "client-call-translation-example": {
+      "label": "Example Co — Spanish-speaking client check-in",
+      "goal": "Reassure the client and secure a renewal commitment",
+      "language": { "source": "es", "target": "en" },
+      "domainVocabulary": ["renovación", "contrato", "soporte"],
+      "fitSummary": "Translation mode: any two languages work, not just the pair in this example.",
+      "proofBank": ["Delivered 99.9% uptime over the last renewal period"],
+      "honestGap": "No account history before this quarter. Bridge: the team's uptime record and a named point of contact.",
+      "questionsToAsk": ["¿Qué necesitarían ver para renovar con confianza?"],
+      "settledAnswers": ["Renewal term: 12 months, standard terms."],
+      "neverSay": ["Don't promise a discount without finance sign-off."],
+      "watchOuts": [
+        {
+          "topic": "Renewal terms",
+          "triggers": ["descuento", "discount", "precio"],
+          "fixedLine": { "primary": "Puedo confirmar el precio exacto con el equipo y responderle mañana.", "other": "I can confirm the exact price with the team and get back to you tomorrow." },
+          "tip": "Never confirm pricing live; always follow up in writing."
+        }
+      ]
+    }
+  },
+  "style": {
+    "preferredVerbs": ["clarify", "prioritize", "align", "ship", "measure"],
+    "safeSentenceStarters": ["I'd start by...", "One concrete example is...", "The measurable result was..."],
+    "fillerWords": ["um", "uh", "like", "you know", "basically", "sort of", "kind of"],
+    "avoid": ["Do not claim a skill or result you don't actually have.", "Do not ramble through your full history — pick one proof point."]
+  }
+}
