@@ -1,0 +1,8 @@
+.DS_Store
+node_modules
+.env*
+.vercel
+.gstack
+api/_data/
+transcripts/
+data/profile.json
