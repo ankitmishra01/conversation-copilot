@@ -1,0 +1,66 @@
+{
+  "account": "Northstar Analytics",
+  "scenario": "Renewal and expansion call",
+  "transcript": "Ava (Account Executive): Before we wrap, I want to make sure we have the renewal path right. Marcus (VP Operations): The renewal is still our plan, but security needs the updated data-retention packet before they will clear it. Ava: I will send the updated data-retention packet by Friday, October 9. Marcus: Great. I will introduce you to Dana in procurement on Monday so you can confirm the paperwork. Nina (Customer Success): I will schedule the administrator training before October 20. Marcus: If the SSO rollout stays stable, I want to revisit the analytics add-on for our support team next quarter. The pricing has to fit inside the existing operations budget. Ava: Understood. I will include an analytics option in the follow-up, but I will keep it separate from the renewal decision. Marcus: That works. The immediate blocker is still the security packet.",
+  "analysis": {
+    "summary": "Northstar plans to renew once security receives updated data-retention documentation. Procurement introduction and administrator training are the immediate next steps, with qualified interest in a separate analytics expansion next quarter.",
+    "commitments": [
+      {
+        "id": "c1",
+        "party": "seller",
+        "owner": "Ava",
+        "action": "Send the updated data-retention packet",
+        "dueDate": "Friday, October 9",
+        "confidence": 0.98,
+        "sourceQuote": "I will send the updated data-retention packet by Friday, October 9."
+      },
+      {
+        "id": "c2",
+        "party": "customer",
+        "owner": "Marcus",
+        "action": "Introduce Ava to Dana in procurement",
+        "dueDate": "Monday",
+        "confidence": 0.96,
+        "sourceQuote": "I will introduce you to Dana in procurement on Monday so you can confirm the paperwork."
+      },
+      {
+        "id": "c3",
+        "party": "seller",
+        "owner": "Nina",
+        "action": "Schedule administrator training",
+        "dueDate": "Before October 20",
+        "confidence": 0.97,
+        "sourceQuote": "I will schedule the administrator training before October 20."
+      }
+    ],
+    "blockers": [
+      {
+        "id": "b1",
+        "label": "Security requires the updated data-retention packet before renewal clearance",
+        "sourceQuote": "The immediate blocker is still the security packet."
+      },
+      {
+        "id": "b2",
+        "label": "Analytics pricing must fit the existing operations budget",
+        "sourceQuote": "The pricing has to fit inside the existing operations budget."
+      }
+    ],
+    "expansionSignals": [
+      {
+        "id": "e1",
+        "label": "Qualified interest in the analytics add-on next quarter if SSO remains stable",
+        "sourceQuote": "If the SSO rollout stays stable, I want to revisit the analytics add-on for our support team next quarter."
+      }
+    ],
+    "followUp": {
+      "subject": "Northstar renewal next steps",
+      "body": "Hi Marcus,\n\nThanks for the clear conversation today. I will send the updated data-retention packet by Friday, October 9. You will introduce me to Dana in procurement on Monday, and Nina will schedule administrator training before October 20.\n\nI will also include a separate analytics add-on option for next quarter, without tying it to the renewal decision.\n\nBest,\nAva"
+    },
+    "crm": {
+      "summary": "Renewal remains the plan. Security clearance depends on the updated data-retention packet. Procurement introduction and admin training are scheduled next; analytics is a qualified expansion signal for next quarter, conditional on SSO stability and budget fit.",
+      "nextStep": "Send updated data-retention packet",
+      "nextStepDate": "Friday, October 9",
+      "stageSuggestion": "Renewal - security review"
+    }
+  }
+}

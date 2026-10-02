@@ -7,18 +7,22 @@
   <title>Conversation Copilot</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/styles.css">
+  <script defer src="/eval-ledger.js"></script>
   <script defer src="/app.js"></script>
+  <script defer src="/close-loop.js"></script>
 </head>
 <body>
+  <a class="skip-nav" href="#main">Skip to main content</a>
   <header class="topbar">
     <a class="brand" href="/">Conversation Copilot</a>
     <nav>
       <a href="#translator">Live copilot</a>
       <a href="#answerSection">Answer coach</a>
+      <a href="#closeLoop">Close the loop</a>
     </nav>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero">
       <div class="hero-grid">
         <div>
@@ -132,6 +136,148 @@
         <p id="scoreText">Score will appear here.</p>
         <ul id="feedback"></ul>
       </div>
+    </section>
+
+    <section class="loop-shell" id="closeLoop" aria-labelledby="loopTitle">
+      <header class="loop-hero">
+        <div>
+          <p class="eyebrow">Post-call workspace · Human-gated execution</p>
+          <h2 id="loopTitle">Close the loop.</h2>
+          <p>Turn a conversation into source-backed commitments, complete the follow-up, and capture every human decision as evaluation data.</p>
+        </div>
+        <ol class="loop-sequence" aria-label="Close the loop workflow">
+          <li><span>01</span> Context</li>
+          <li><span>02</span> Draft</li>
+          <li><span>03</span> Decide</li>
+          <li><span>04</span> Learn</li>
+        </ol>
+      </header>
+
+      <div class="loop-input-grid">
+        <div class="panel loop-input-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-index">INPUT / CALL_01</p>
+              <h3>Conversation evidence</h3>
+            </div>
+            <span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span>
+          </div>
+          <label for="loopTranscript">Call transcript</label>
+          <textarea id="loopTranscript" placeholder="Paste a call transcript, copy the live transcript, or load the verified demo."></textarea>
+          <div class="button-row">
+            <button type="button" id="loadLoopDemo">Load verified demo</button>
+            <button type="button" class="secondary-button" id="useLiveTranscript">Use live transcript</button>
+            <button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button>
+          </div>
+          <p class="privacy-note"><strong>Privacy boundary:</strong> the transcript is sent only for this analysis. Decisions stay in this browser unless you export them.</p>
+        </div>
+
+        <aside class="loop-principles" aria-label="Product principles">
+          <p class="panel-index">OPERATING RULES</p>
+          <h3>Trust is a product surface.</h3>
+          <dl>
+            <div><dt>Evidence</dt><dd>Every claimed fact carries the words that support it.</dd></div>
+            <div><dt>Permission</dt><dd>Nothing completes until a human approves the exact output.</dd></div>
+            <div><dt>Learning</dt><dd>Edits and rejections become structured feedback, not lost activity.</dd></div>
+          </dl>
+        </aside>
+      </div>
+
+      <div id="loopResults" hidden>
+        <section class="loop-summary-band" aria-labelledby="summaryTitle">
+          <div>
+            <p class="panel-index">RUN SUMMARY</p>
+            <h3 id="summaryTitle">What changed and what happens next</h3>
+            <p id="loopSummary"></p>
+          </div>
+          <span id="loopModel" class="model-tag">Model response</span>
+        </section>
+
+        <ul class="loop-warnings" id="loopWarnings" aria-label="Unsupported evidence warnings" hidden></ul>
+
+        <section class="evidence-section" aria-labelledby="evidenceTitle">
+          <div class="section-label">
+            <p class="panel-index">EVIDENCE RAIL</p>
+            <h3 id="evidenceTitle">Facts with standing</h3>
+          </div>
+          <div class="evidence-rail" id="evidenceRail"></div>
+        </section>
+
+        <section class="artifact-grid" aria-label="Human approval queue">
+          <article class="artifact-card">
+            <header>
+              <div><p class="panel-index">ACTION / EMAIL</p><h3>Customer follow-up</h3></div>
+              <span class="decision-state" id="followupDecision">Awaiting review</span>
+            </header>
+            <label for="followupEditor">Editable draft</label>
+            <textarea id="followupEditor" class="artifact-editor"></textarea>
+            <label for="followupReason">Rejection reason</label>
+            <select id="followupReason">
+              <option value="">Select only when rejecting</option>
+              <option>Missing or incorrect context</option>
+              <option>Wrong tone for the customer</option>
+              <option>Action or timing is inaccurate</option>
+              <option>Not useful enough to send</option>
+            </select>
+            <div class="button-row artifact-actions">
+              <button type="button" id="approveFollowup">Approve + queue</button>
+              <button type="button" class="reject-button" id="rejectFollowup">Reject</button>
+            </div>
+          </article>
+
+          <article class="artifact-card">
+            <header>
+              <div><p class="panel-index">ACTION / CRM</p><h3>Account update</h3></div>
+              <span class="decision-state" id="crmDecision">Awaiting review</span>
+            </header>
+            <label for="crmEditor">Editable record</label>
+            <textarea id="crmEditor" class="artifact-editor"></textarea>
+            <label for="crmReason">Rejection reason</label>
+            <select id="crmReason">
+              <option value="">Select only when rejecting</option>
+              <option>Missing or incorrect context</option>
+              <option>Wrong owner or next step</option>
+              <option>Stage suggestion is not justified</option>
+              <option>Not useful enough to write</option>
+            </select>
+            <div class="button-row artifact-actions">
+              <button type="button" id="approveCrm">Approve + write</button>
+              <button type="button" class="reject-button" id="rejectCrm">Reject</button>
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <section class="learning-grid" aria-labelledby="learningTitle">
+        <div class="learning-panel">
+          <div class="section-label">
+            <p class="panel-index">EVALUATION LOOP</p>
+            <h3 id="learningTitle">What the agent learns</h3>
+          </div>
+          <div class="metric-grid">
+            <article><strong id="metricDecisions">0</strong><span>decisions</span></article>
+            <article><strong id="metricApproval">0%</strong><span>approved</span></article>
+            <article><strong id="metricEditing">0%</strong><span>average editing</span></article>
+            <article><strong id="metricTime">0s</strong><span>decision time</span></article>
+            <article><strong id="metricCompleted">0</strong><span>completed actions</span></article>
+          </div>
+          <p class="loop-empty" id="ledgerEmpty">Approve or reject an artifact to create the first eval.</p>
+          <ol class="decision-ledger" id="decisionLedger"></ol>
+          <div class="button-row ledger-actions">
+            <button type="button" class="secondary-button" id="exportLedger">Export evals</button>
+            <button type="button" class="secondary-button" id="clearLedger">Clear local ledger</button>
+          </div>
+        </div>
+
+        <div class="sandbox-panel">
+          <div class="section-label">
+            <p class="panel-index">DEMO SINK</p>
+            <h3>Completed workflow</h3>
+          </div>
+          <p class="loop-empty" id="sandboxEmpty">Approved actions appear here as a demo outbox and account record.</p>
+          <div class="sandbox-actions" id="sandboxActions"></div>
+        </div>
+      </section>
     </section>
   </main>
   <p id="popoutNote" class="popout-note" hidden>The copilot is in the floating window. Close it to bring it back here.</p>
