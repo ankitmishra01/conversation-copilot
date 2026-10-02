@@ -1,169 +1,242 @@
 # Conversation Copilot
 
-A live-conversation copilot you configure for your own business need: an interview, a sales call, a
-negotiation, a client check-in. It listens through your microphone, transcribes in real time, translates
-if your scenario spans two languages, and gives you tactical "what to say next" coaching grounded in your
-own background and goal — never in anything the model invents.
+**A source-grounded copilot for live conversations and post-call follow-through.**
 
-The Ghost-branded shell exposes three working product modes: **Live copilot**, **Answer coach**, and
-**Close the Loop**. Close the Loop turns a transcript into source-backed commitments, an editable
-follow-up email, and a CRM update. Approvals, edits, and rejections become a local evaluation ledger and
-an attribution state so you can see whether the agent is improving rather than merely generating.
+[Try the verified Close the Loop demo](https://conversation-copilot-three.vercel.app/?view=loop&demo=commitment-loop) · [Open Live copilot](https://conversation-copilot-three.vercel.app/?view=live) · [Open Answer coach](https://conversation-copilot-three.vercel.app/?view=coach)
 
-## Quickstart
+Conversation Copilot listens through your microphone, transcribes speech, and provides tactical coaching grounded in a configurable profile. After a call, **Close the Loop** converts the transcript into traceable commitments, an editable follow-up email, and a CRM update. Human approvals, edits, and rejections become evaluation data that can improve the next run.
+
+This repository is an independent interview concept by Ankit Mishra. The Ghost-branded interface demonstrates product and brand fluency; it is not an official Ghost product.
+
+## What it demonstrates
+
+| Mode | Purpose |
+| --- | --- |
+| **Live copilot** | Transcribes a conversation, translates when needed, and suggests what to say next. |
+| **Answer coach** | Turns the current conversation into a concise answer, proof points, questions, and watch-outs. |
+| **Close the Loop** | Extracts source-backed actions and risks, prepares follow-up artifacts, records human decisions, and traces those decisions into a later run. |
+
+Each mode has a shareable URL: `?view=live`, `?view=coach`, or `?view=loop`.
+
+## Try the verified demo
+
+Open the [Close the Loop demo](https://conversation-copilot-three.vercel.app/?view=loop&demo=commitment-loop), then select **Present the full loop**.
+
+The deterministic eight-step replay follows one customer claim through:
+
+1. transcript evidence and exact source attribution;
+2. a human edit to the proposed customer email;
+3. approval and a browser-local evaluation event;
+4. a scoped rule derived from the correction;
+5. a second run shown with and without that rule; and
+6. a clearly labelled fictional downstream outcome.
+
+The demo uses the bundled fixture in [`data/commitment-loop-demo.json`](data/commitment-loop-demo.json). It does not require an API key or depend on model availability. **Run live analysis** is a separate path.
+
+## How it works
+
+```text
+Microphone or transcript
+          |
+          v
+  Speech-to-text API ------> Scenario profile and private memory
+          |                              |
+          +--------------+---------------+
+                         v
+             Translation and coaching
+                         |
+                         v
+              Source-backed extraction
+                         |
+             +-----------+-----------+
+             v                       v
+      Follow-up email             CRM update
+             +-----------+-----------+
+                         v
+             Human approve/edit/reject
+                         |
+                         v
+        Local evaluation ledger and learned rule
+```
+
+The browser is a plain HTML, CSS, and JavaScript client. Vercel Functions provide the profile, transcription, coaching, and close-loop APIs. Model calls go through Vercel AI Gateway. No database is required: the evaluation ledger stays in browser `localStorage` until the user explicitly exports it.
+
+## Local setup
+
+### Prerequisites
+
+- Node.js 22 or later
+- npm
+- A Vercel account for live API routes and deployment
+- An AI Gateway credential for local model calls, or Vercel OIDC in a deployment
+
+Clone and install:
 
 ```bash
 git clone https://github.com/ankitmishra01/conversation-copilot.git
 cd conversation-copilot
 npm install
-cp data/profile.example.json data/profile.json   # then edit it — see "Configuring your profile" below
-cp .env.example .env.local                         # then fill in AI_GATEWAY_API_KEY at minimum
-python3 -m http.server 4174                        # local static preview at http://localhost:4174
+cp data/profile.example.json data/profile.json
+cp .env.example .env.local
 ```
 
-Open `http://localhost:4174/?view=loop&demo=commitment-loop` to load the bundled fictional renewal-call
-demo without an API key. The static server can show the verified snapshot and the complete approval/eval
-flow; use a Vercel deployment or `vercel dev` for live model analysis through `/api/close-loop`.
-
-The three shareable product views are `?view=live`, `?view=coach`, and `?view=loop`. The legacy
-`?demo=commitment-loop` URL remains supported and resolves to Close the Loop.
-
-Deploy for real use (the browser needs HTTPS for microphone access, and `/api/*` needs a serverless
-runtime):
+For the verified static demo, run:
 
 ```bash
-npm install -g vercel
-vercel --prod
+python3 -m http.server 4174
 ```
 
-## Close the Loop
+Then open:
 
-The post-call workflow is deliberately narrow:
+```text
+http://localhost:4174/?view=loop&demo=commitment-loop
+```
 
-1. Paste a transcript, copy the live transcript, or load the verified demo.
-2. Filter commitments, blockers, and expansion signals. Every fact carries its speaker, source date,
-   source type, and exact quote; selecting it reveals the matching transcript passage.
-3. Review and edit the follow-up email and CRM update.
-4. Approve an artifact to complete it in the clearly labeled demo outbox/account record, or reject it
-   with a reason.
-5. Watch the trace advance from context to evaluation and attribution, then inspect or export the
-   browser-local ledger: approval rate, editing required, decision time, and completed actions.
+For live API routes, add `AI_GATEWAY_API_KEY` to `.env.local` and run:
 
-The bundled transcript and snapshot live in `data/commitment-loop-demo.json`. They are fictional and
-safe to present. The live endpoint uses Vercel AI Gateway and defaults to `openai/gpt-6.1-sol-fast`;
-set `AI_GATEWAY_LOOP_MODEL` to override it. The endpoint also honors the existing `COPILOT_KEY`, access
-window, and credit-reserve controls.
+```bash
+npx vercel dev
+```
 
-### Trust and privacy boundaries
+Open `http://localhost:3000`. Microphone access requires `localhost` or HTTPS.
 
-- Unsupported source quotes remain visible as unsupported warnings; they are never silently promoted
-  to facts.
-- Live transcripts are sent to the configured model only when **Run live analysis** is pressed.
-- Evaluation events are stored in local browser storage. They leave the browser only when the user
-  explicitly exports the JSON file.
-- Email and CRM completion happens in a demo sandbox. The interface never claims to have contacted a
-  customer or written to a real CRM.
+## Configure the copilot
 
-## Configuring your profile
-
-Everything personal lives in `data/profile.json` (git-ignored — never committed). Start from
-`data/profile.example.json`, which has three worked examples: a same-language interview, a same-language
-sales-call notes scenario, and a Spanish-to-English translation scenario.
+Personal configuration belongs in `data/profile.json`, which is git-ignored. Start from [`data/profile.example.json`](data/profile.example.json).
 
 ```jsonc
 {
   "you": {
     "name": "Your Name",
-    "role": "candidate",              // the noun the AI prompts use for you: "candidate", "account executive", ...
-    "positioning": "One paragraph pitch.",
+    "role": "account executive",
+    "positioning": "The context the copilot should use when coaching you.",
     "background": [
-      { "label": "Company or context", "proofPoints": ["..."], "usefulFor": ["all"] }
+      {
+        "label": "Company or role",
+        "proofPoints": ["A claim the copilot may safely use."],
+        "usefulFor": ["all"]
+      }
     ]
   },
   "scenarios": {
-    "your-scenario-key": {
-      "label": "Shown in the UI dropdown",
-      "goal": "What you're trying to achieve",
-      "language": { "source": "en", "target": "en" },   // equal = notes-only mode, no translation
-      "domainVocabulary": ["term1", "term2"],             // helps speech recognition and the AI understand your domain
-      "fitSummary": "How to position yourself.",
-      "proofBank": ["Short quotable proof points."],
-      "honestGap": "A gap to acknowledge, plus the bridge.",
-      "questionsToAsk": ["A question you can ask back."],
-      "settledAnswers": ["Facts to state literally, never improvised."],
-      "neverSay": ["Things the AI must never say for you."],
-      "watchOuts": [
-        {
-          "topic": "Compensation",
-          "triggers": ["salary", "compensation"],
-          "fixedLine": { "primary": "Your exact words, never generated." },
-          "tip": "Why this line, so you remember the strategy."
-        }
-      ]
+    "renewal-call": {
+      "label": "Renewal call",
+      "goal": "Leave with owners, dates, and the renewal blocker confirmed.",
+      "language": { "source": "en", "target": "en" },
+      "domainVocabulary": ["renewal", "data retention", "SSO"],
+      "fitSummary": "How to position your value.",
+      "proofBank": ["Short, quotable proof points."],
+      "honestGap": "A gap to acknowledge and how to bridge it.",
+      "questionsToAsk": ["What still blocks security approval?"],
+      "settledAnswers": ["Facts to state literally."],
+      "neverSay": ["Claims the copilot must not make."],
+      "watchOuts": []
     }
-  },
-  "style": {
-    "preferredVerbs": ["clarify", "prioritize", "align"],
-    "safeSentenceStarters": ["I'd start by...", "..."],
-    "fillerWords": ["um", "like", "you know"],
-    "avoid": ["Do not claim a result you don't actually have."]
   }
 }
 ```
 
-Pick as many `scenarios` as you want. Anything with `language.source === language.target` runs in
-**notes mode** (live transcript + coaching, no translation panel). Anything else translates both ways.
+When `language.source` and `language.target` match, the app runs in notes mode. Different languages enable translation.
 
-**What the browser can see:** the UI fetches a redacted view of your profile from `/api/profile` — it
-never sees `settledAnswers`, `neverSay`, `honestGap`, or `watchOuts`. Those stay server-side, read only
-by `/api/translate`, so the other party on a call (even over a shared screen) can't open devtools and
-read your negotiation stance. `data/profile.json` itself is also never served as a static file.
+The browser receives only a redacted profile from `/api/profile`. Sensitive coaching fields such as `settledAnswers`, `neverSay`, `honestGap`, and `watchOuts` remain server-side.
 
-## Live use
+## Environment variables
 
-Open the deployed site, pick your scenario from the **Scenario** dropdown, press **Start listening**, and
-allow microphone access. Press **Mini window** for a small display-only window you can park beside a video
-call (listening stays in the main tab).
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `AI_GATEWAY_API_KEY` | Local AI use | Authenticates AI Gateway requests. Vercel OIDC can supply deployment authentication instead. |
+| `COPILOT_KEY` | No | Protects API access with a shared secret. Visit once with `?k=<value>` to store it locally. |
+| `COPILOT_URL` | CLI only | Base URL used by the listener and credit scripts. Defaults to `http://localhost:3000`. |
+| `COPILOT_ACTIVE_UNTIL` | No | ISO timestamp after which AI routes stop responding. |
+| `COPILOT_RECALL` | No | Set to `enabled` to reopen an expired access window. |
+| `COPILOT_RESERVE_USD` | No | Preserves a minimum AI Gateway credit balance. |
+| `COPILOT_RESERVE_UNTIL` | No | ISO timestamp that bounds the credit reserve. |
+| `MEMORY_REPO` | No | Private GitHub repository containing a profile file. |
+| `MEMORY_PATH` | No | Profile path inside `MEMORY_REPO`; defaults to `profile.json`. |
+| `AI_GATEWAY_MODEL` | No | Overrides the main translation and coaching model. |
+| `AI_GATEWAY_FAST_MODEL` | No | Overrides the low-latency translation model. |
+| `AI_GATEWAY_FALLBACK_MODEL` | No | Overrides the configured fallback model. |
+| `AI_GATEWAY_STT_MODEL` | No | Overrides the speech-to-text model chain. |
+| `AI_GATEWAY_LOOP_MODEL` | No | Overrides the Close the Loop analysis model. |
 
-For the most accurate transcription, use the terminal listener instead of the browser:
+See [`.env.example`](.env.example) for a copy-ready configuration.
+
+## Terminal listener
+
+For more reliable capture than browser speech recognition, use the terminal listener:
 
 ```bash
-npm run listen -- --role your-scenario-key --save
+npm run listen -- --role renewal-call --save
 ```
 
-Once deployed, set `COPILOT_URL` in `.env.local` (or pass `--url`) to your deployed URL — the terminal
-listener and `npm run credits` otherwise talk to `http://localhost:3000`, where nothing is listening
-unless you're running `vercel dev`.
+Set `COPILOT_URL` to a deployed URL or run `vercel dev` locally. The listener records through the same `/api/transcribe` and `/api/translate` routes as the web client. `--save` writes a local Markdown transcript under `transcripts/`.
 
-Duplicate `Copilot Launcher.command.template`, rename it, set its `--role` to a scenario key, and
-`chmod +x` it for a one-click launcher per scenario.
+## Trust and privacy boundaries
 
-## Optional features (all off by default)
+- Extracted commitments, blockers, and expansion signals keep an exact source quote. Quotes missing from the transcript are marked unsupported.
+- A transcript is sent to a model only when the user invokes an AI action such as **Run live analysis**.
+- Evaluation events remain in browser storage unless the user exports them.
+- Email and CRM completion occur only in a labelled demo sandbox. The interface does not claim to contact a customer or write to a real CRM.
+- Profile fields that contain private strategy stay on the server and are omitted from the public browser payload.
+- The app listens through the microphone. It does not join calls, control meeting software, or bypass participant consent.
 
-- **Access window.** Set `COPILOT_ACTIVE_UNTIL` (an ISO timestamp) to make the copilot stop responding
-  after a given time; `COPILOT_RECALL=enabled` reopens it. Leave both unset for a copilot that never
-  expires.
-- **Credit reserve.** Set `COPILOT_RESERVE_USD` and `COPILOT_RESERVE_UNTIL` to refuse AI calls once your
-  AI Gateway balance is at or below that amount, until that time — useful if you're protecting budget for
-  a specific upcoming call. Leave unset (or `0`) to disable.
-- **Private-repo config sync.** Set `MEMORY_REPO` (and optionally `MEMORY_PATH`, default `profile.json`)
-  to pull your real `profile.json` from a private GitHub repo instead of keeping it locally:
-  `npm run sync-memory` (uses your local `gh` login; no token is stored). `npm run deploy` runs this then
-  `vercel --prod`.
-- **Access key.** Set `COPILOT_KEY` to require a shared secret; open the deployed site once with
-  `?k=<value>` per device.
+## Commands
 
-## Cost
+```bash
+npm test          # run the complete Node test suite
+npm run check     # syntax-check client, API, CLI, and desktop files
+npm run listen    # start the terminal listener
+npm run credits   # inspect AI Gateway balance and model configuration
+npm run desktop   # open the Electron overlay
+npm run deploy    # sync private profile data, then deploy to production
+```
 
-AI calls go through Vercel's AI Gateway. `npm run credits` shows your current balance and which models
-and credential this deployment is using. Cost depends on which models you configure — check your AI
-Gateway usage dashboard for your own numbers.
+## API routes
+
+| Route | Method | Role |
+| --- | --- | --- |
+| `/api/profile` | `GET` | Returns the public-safe profile and scenario list. |
+| `/api/transcribe` | `POST` | Transcribes base64 audio and filters common silence hallucinations. |
+| `/api/translate` | `POST` | Handles translation, answer generation, coaching, profile snapshots, and credit checks. |
+| `/api/close-loop` | `POST` | Converts a transcript into verified evidence, a follow-up draft, and a CRM update. |
+
+All routes honor the optional access key. AI routes also honor the access window and credit reserve.
+
+## Repository map
+
+```text
+api/                         Vercel Functions and shared server-side profile/access logic
+data/                        Example profile and deterministic Close the Loop fixture
+desktop/                     Electron overlay wrapper
+scripts/                     Terminal listener, profile sync, and credit utilities
+test/                        Unit and integration-style Node tests
+app.js                       Live copilot and answer coach client
+close-loop.js                Post-call workflow and presentation replay
+eval-ledger.js               Local decision events and evaluation metrics
+view-controller.js           Shareable product-mode routing
+index.html / styles.css       Product shell and Ghost-inspired visual system
+DESIGN.md                    Design direction, interaction rules, and accessibility constraints
+```
+
+## Test and deploy
+
+Run the quality gates before deploying:
+
+```bash
+npm run check
+npm test
+```
+
+Deploy to Vercel:
+
+```bash
+vercel --prod
+```
+
+The production deployment needs HTTPS for microphone access and a serverless runtime for `/api/*`.
 
 ## Limitations
 
-A browser page cannot silently capture all system audio — this listens through the microphone, so play
-the other party's audio through your speakers (or use a loopback device like BlackHole with the terminal
-listener). A microphone also cannot reliably separate your own voice from the other person's, which is
-why there's a **Pause my voice** / **Resume incoming** control. This is built as a practice and
-accessibility aid — it does not join calls, control meeting software, or bypass another party's
-visibility or consent.
+Browsers cannot silently capture all system audio. Play the other participant through speakers or use a loopback device such as BlackHole with the terminal listener. A shared microphone cannot reliably distinguish your voice from the other participant, so the interface includes **Pause my voice** and **Resume incoming** controls.
+
+The bundled Close the Loop replay is a fictional, deterministic product demonstration. It shows the mechanics of evidence, evaluation, learned guidance, and attribution without claiming that the agent caused a real commercial outcome.

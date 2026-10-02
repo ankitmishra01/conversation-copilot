@@ -102,7 +102,7 @@
           <h1 id="conceptTitle">Close the Loop</h1>
           <p class="concept-lede">What was said. What acted. What changed.</p>
           <p class="concept-support">Turn customer conversations into source-backed actions, human decisions, evaluations, and revenue outcomes the next agent can learn from.</p>
-          <div class="concept-actions"><a class="concept-cta" href="#closeLoop">Review the verified workflow</a><a class="concept-secondary" href="https://github.com/ankitmishra01/conversation-copilot" target="_blank" rel="noreferrer">Inspect the build</a></div>
+          <div class="concept-actions"><button type="button" class="concept-cta" id="startPresentation">Present the full loop</button><a class="concept-secondary" href="#closeLoop">Review manually</a><a class="concept-secondary" href="https://github.com/ankitmishra01/conversation-copilot" target="_blank" rel="noreferrer">Inspect the build</a></div>
         </div>
         <div class="concept-status" aria-label="Current workflow status"><span id="conceptRunLabel"><i></i> Verified demo</span><strong id="conceptFindingCount">6</strong> source-backed findings<strong id="conceptPendingCount">2</strong> decisions pending<small id="conceptAccountLabel">Fictional Northstar renewal call</small></div>
         <ol class="context-trace" id="contextTrace" aria-label="Context to attribution feedback loop">
@@ -118,6 +118,20 @@
           <div><p class="panel-index" id="loopAccountEyebrow">ACCOUNT / NORTHSTAR ANALYTICS</p><h2 id="loopAccountName">Renewal and expansion call</h2><p id="loopRunMeta">Verified snapshot · fictional data · browser-local decisions</p></div>
           <div class="loop-head-actions"><span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span><button type="button" class="secondary-button" id="loadLoopDemo">Replay verified demo</button><button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button></div>
         </header>
+        <section class="presentation-guide" id="presentationGuide" aria-labelledby="presentationTitle" hidden>
+          <p class="sr-only" id="presentationAnnouncement" aria-live="polite"></p>
+          <div class="presentation-progress" aria-hidden="true"><span id="presentationProgress"></span></div>
+          <div>
+            <p class="panel-index">VERIFIED REPLAY · <span id="presentationCounter">1 / 8</span></p>
+            <h3 id="presentationTitle">Start with account context</h3>
+            <p id="presentationCopy">Follow one customer fact through action, evaluation, the next agent run, and an associated outcome.</p>
+          </div>
+          <div class="presentation-actions">
+            <button type="button" class="secondary-button" id="presentationBack">Back</button>
+            <button type="button" id="presentationNext">Inspect source</button>
+            <button type="button" class="text-button" id="presentationRestart">Restart</button>
+          </div>
+        </section>
         <div class="loop-workspace">
           <aside class="source-column" aria-labelledby="sourceTitle">
             <div class="column-head"><div><p class="panel-index">CONTEXT</p><h3 id="sourceTitle">Source transcript</h3></div><button type="button" class="text-button" id="useLiveTranscript">Use live transcript</button></div>
@@ -144,6 +158,7 @@
               <header><div><p class="panel-index">EMAIL</p><h4>Follow up with Northstar</h4></div><span class="decision-state" id="followupDecision">Awaiting review</span></header>
               <label for="followupEditor">Editable draft</label><textarea id="followupEditor" class="artifact-editor"></textarea>
               <label for="followupReason">Rejection reason</label><select id="followupReason"><option value="">Select only when rejecting</option><option>Missing or incorrect context</option><option>Wrong tone for the customer</option><option>Action or timing is inaccurate</option><option>Not useful enough to send</option></select>
+              <button type="button" class="demo-edit-button" id="applyDemoEdit">Apply demo edit: keep renewal focused</button>
               <div class="button-row artifact-actions"><button type="button" id="approveFollowup">Approve + queue</button><button type="button" class="reject-button" id="rejectFollowup">Reject</button></div>
             </article>
             <article class="artifact-card">
@@ -164,6 +179,38 @@
             </section>
           </aside>
         </div>
+        <section class="learning-replay" id="learningReplay" aria-labelledby="learningReplayTitle" hidden>
+          <header class="learning-replay-head">
+            <div><p class="panel-index">THE NEXT RUN IS DIFFERENT</p><h2 id="learningReplayTitle">Feedback becomes behavior, not a forgotten comment.</h2></div>
+            <span class="verified-replay-tag">Deterministic verified replay</span>
+          </header>
+          <div class="learning-replay-grid">
+            <article class="learning-rule-panel" id="learningRulePanel" tabindex="-1" hidden>
+              <p class="panel-index">01 · HUMAN EVALUATION</p>
+              <h3 id="learningRuleTitle">Scoped rule captured</h3>
+              <p id="learningRuleText"></p>
+              <div class="scope-row"><span>Applies to <strong id="ruleAppliesTo"></strong></span><span>Excluded from <strong id="ruleExcludedFrom"></strong></span></div>
+              <div class="edit-evidence"><span>Removed by human</span><del id="humanRemovedText"></del></div>
+            </article>
+            <article class="next-run-panel" id="nextRunPanel" tabindex="-1" hidden>
+              <p class="panel-index">02 · NEXT CONVERSATION</p>
+              <h3 id="nextRunTitle">Juniper renewal checkpoint</h3>
+              <p id="nextRunMeta" class="next-run-meta"></p>
+              <div class="draft-comparison">
+                <section><span>Without feedback</span><h4 id="baselineSubject"></h4><p id="baselineBody"></p></section>
+                <section class="is-learned"><span>With learned rule</span><h4 id="learnedSubject"></h4><p id="learnedBody"></p><small id="appliedRuleLabel"></small></section>
+              </div>
+              <div class="crm-preserved"><span>CRM memory preserved</span><p id="nextRunCrm"></p></div>
+            </article>
+            <article class="outcome-panel" id="outcomePanel" tabindex="-1" hidden>
+              <p class="panel-index">03 · ASSOCIATED OUTCOME</p>
+              <h3 id="outcomeTitle"></h3>
+              <p id="outcomeSummary"></p>
+              <ol class="outcome-timeline" id="outcomeTimeline"></ol>
+              <p class="attribution-boundary">Association, not causation. This is fictional demo data.</p>
+            </article>
+          </div>
+        </section>
       </section>
     </section>
   </main>

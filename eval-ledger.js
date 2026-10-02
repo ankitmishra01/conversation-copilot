@@ -5,7 +5,7 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  var DEFAULT_KEY = "conversation-copilot:commitment-evals:v1";
+  var DEFAULT_KEY = "conversation-copilot:commitment-evals:v2";
 
   function words(value) {
     return String(value || "").toLocaleLowerCase().match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)?/gu) || [];
@@ -61,7 +61,10 @@
       startedAt: startedAt,
       decidedAt: decidedAt,
       decisionSeconds: seconds,
-      completed: input.completed === true
+      completed: input.completed === true,
+      decisionSource: String(input.decisionSource || "manual"),
+      demoVersion: input.demoVersion ? String(input.demoVersion) : null,
+      appliedRuleIds: Array.isArray(input.appliedRuleIds) ? input.appliedRuleIds.map(String) : []
     };
   }
 
@@ -82,6 +85,16 @@
       averageDecisionSeconds: Math.round(average(list.map(function (event) { return Number(event.decisionSeconds) || 0; }))),
       completedActions: list.filter(function (event) { return event.completed === true; }).length
     };
+  }
+
+  function eventsForRun(events, runId) {
+    return (Array.isArray(events) ? events : []).filter(function (event) {
+      return event && event.runId === runId;
+    });
+  }
+
+  function calculateRunMetrics(events, runId) {
+    return calculateMetrics(eventsForRun(events, runId));
   }
 
   function createLedger(storage, key) {
@@ -123,6 +136,8 @@
     wordChangeRatio: wordChangeRatio,
     createDecisionEvent: createDecisionEvent,
     calculateMetrics: calculateMetrics,
+    calculateRunMetrics: calculateRunMetrics,
+    eventsForRun: eventsForRun,
     createLedger: createLedger
   };
 }));

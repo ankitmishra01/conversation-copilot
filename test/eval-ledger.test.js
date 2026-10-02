@@ -26,11 +26,17 @@ function run() {
     reason: "",
     startedAt: "2026-10-01T12:00:00.000Z",
     decidedAt: "2026-10-01T12:00:20.000Z",
-    completed: true
+    completed: true,
+    decisionSource: "guided-replay",
+    demoVersion: "2026-10-02",
+    appliedRuleIds: ["renewal-expansion-separation"]
   });
   assert.strictEqual(approved.edited, true);
   assert.strictEqual(approved.editRatio, 0.25);
   assert.strictEqual(approved.decisionSeconds, 20);
+  assert.strictEqual(approved.decisionSource, "guided-replay");
+  assert.strictEqual(approved.demoVersion, "2026-10-02");
+  assert.deepStrictEqual(approved.appliedRuleIds, ["renewal-expansion-separation"]);
 
   assert.throws(() => evals.createDecisionEvent({ decision: "ignored" }), /decision/, "unknown decisions must be rejected");
   assert.throws(() => evals.createDecisionEvent({ decision: "rejected", reason: "" }), /reason/, "a rejection without a reason is not useful eval data");
@@ -54,6 +60,24 @@ function run() {
     averageDecisionSeconds: 30,
     completedActions: 1
   });
+  const otherRun = evals.createDecisionEvent({
+    runId: "run-2",
+    artifactType: "crm",
+    decision: "approved",
+    original: "Original CRM",
+    final: "Original CRM",
+    startedAt: "2026-10-01T12:00:00.000Z",
+    decidedAt: "2026-10-01T12:00:02.000Z",
+    completed: true
+  });
+  const runMetrics = evals.calculateRunMetrics([approved, rejected, otherRun], "run-1");
+  assert.strictEqual(runMetrics.totalDecisions, 2, "presentation metrics must be isolated to the active run");
+  assert.strictEqual(runMetrics.completedActions, 1);
+  assert.deepStrictEqual(
+    evals.eventsForRun([approved, rejected, otherRun], "run-1"),
+    [approved, rejected],
+    "the visible ledger and demo sink must use the same active-run boundary as metrics"
+  );
 
   const storage = memoryStorage();
   const ledgerA = evals.createLedger(storage, "test-ledger");

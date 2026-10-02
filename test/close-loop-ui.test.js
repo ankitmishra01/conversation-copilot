@@ -45,6 +45,47 @@ function run() {
   assert.deepStrictEqual(ui.feedbackState([{ decision: "approved", completed: true }]), { stage: "evaluation", pending: 1, completed: 1, rejected: 0 });
   assert.deepStrictEqual(ui.feedbackState([{ decision: "approved", completed: true }, { decision: "approved", completed: true }]), { stage: "attribution", pending: 0, completed: 2, rejected: 0 });
   assert.deepStrictEqual(ui.feedbackState([{ decision: "rejected", completed: false }]), { stage: "evaluation", pending: 1, completed: 0, rejected: 1 });
+  assert.deepStrictEqual(
+    ui.feedbackState([
+      { artifactType: "follow-up", decision: "approved", completed: true },
+      { artifactType: "follow-up", decision: "approved", completed: true }
+    ]),
+    { stage: "evaluation", pending: 1, completed: 1, rejected: 0 },
+    "repeated decisions on one artifact must not complete the workflow"
+  );
+
+  const comparison = ui.compareArtifact(
+    "Keep the renewal moving.\nInclude analytics pricing now.",
+    "Keep the renewal moving."
+  );
+  assert.deepStrictEqual(comparison.removed, ["Include analytics pricing now."]);
+  assert.deepStrictEqual(comparison.added, []);
+
+  const learnedRule = ui.createLearnedRule(demo.learningLoop.rule, {
+    runId: "run-1",
+    artifactType: "follow-up",
+    decision: "approved",
+    edited: true
+  });
+  assert.strictEqual(learnedRule.id, "renewal-expansion-separation");
+  assert.strictEqual(learnedRule.sourceRunId, "run-1");
+  assert.deepStrictEqual(learnedRule.appliesTo, ["customer-follow-up"]);
+  assert.deepStrictEqual(learnedRule.excludedFrom, ["crm"]);
+
+  assert.strictEqual(ui.presentationStep(-1).index, 0);
+  assert.strictEqual(ui.presentationStep(99).index, 7);
+  assert.strictEqual(ui.presentationStep(5).action, "Run next conversation");
+  assert.deepStrictEqual(ui.presentationVisibility(3), { replay: false, rule: false, nextRun: false, outcome: false });
+  assert.deepStrictEqual(ui.presentationVisibility(4), { replay: true, rule: true, nextRun: false, outcome: false });
+  assert.deepStrictEqual(ui.presentationVisibility(7), { replay: true, rule: true, nextRun: true, outcome: true });
+
+  const correction = demo.learningLoop.edit;
+  const originalDraft = ui.artifactText("follow-up", normalized);
+  const correctedDraft = originalDraft.replace(correction.remove, "");
+  assert.strictEqual(ui.qualifiesForDemoRule(correction, originalDraft, correctedDraft, { decision: "approved", edited: true }, true), true);
+  assert.strictEqual(ui.qualifiesForDemoRule(correction, originalDraft, originalDraft + "\nThanks", { decision: "approved", edited: true }, true), false, "unrelated edits must not create the demo rule");
+  assert.strictEqual(ui.qualifiesForDemoRule(correction, originalDraft, correctedDraft, { decision: "rejected", edited: true }, true), false, "rejected work must not create a learned rule");
+  assert.strictEqual(ui.qualifiesForDemoRule(correction, originalDraft, correctedDraft, { decision: "approved", edited: true }, false), false, "live runs must not inherit a bundled demo rule");
 
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   assert.ok(html.includes("view-controller.js"), "the page must load the product mode controller");
@@ -61,6 +102,10 @@ function run() {
   assert.ok(html.includes("Evidence filters"), "evidence must be filterable without another model call");
   assert.ok(html.includes('id="conceptFindingCount"') && html.includes('id="conceptPendingCount"'), "hero counts must be live state, not static copy");
   assert.ok(html.includes('id="loopAccountName"') && html.includes('id="filterAllCount"'), "account and filter labels must update for live runs");
+  assert.ok(html.includes('id="startPresentation"') && html.includes('id="presentationNext"'), "the verified learning loop must have guided presentation controls");
+  assert.ok(html.includes('id="learningRulePanel"') && html.includes('id="nextRunPanel"') && html.includes('id="outcomePanel"'), "the interface must expose learning, next-run, and outcome states");
+  assert.ok(html.includes('id="presentationAnnouncement"') && html.includes('aria-live="polite"'), "guided steps must be announced to assistive technology");
+  assert.ok(html.includes('id="learningRulePanel" tabindex="-1"') && html.includes('id="outcomePanel" tabindex="-1"'), "newly revealed guided panels must accept deliberate focus");
   assert.ok(html.includes('aria-labelledby="transcriptTitle"') && html.includes('aria-labelledby="answerTitle"'), "live and practice textareas must have programmatic labels");
 
   const css = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
@@ -81,8 +126,12 @@ function run() {
   assert.ok(design.includes("Independent interview concept by Ankit Mishra"), "DESIGN.md must preserve the authorship boundary");
 
   const script = fs.readFileSync(path.join(__dirname, "..", "close-loop.js"), "utf8");
-  assert.ok(script.includes("loadDemo(false)"), "automatic demo loading must preserve the branded hero position");
+  assert.ok(script.includes("loadDemo(false, false)"), "automatic demo loading must preserve the branded hero position and remain outside presentation mode");
   assert.ok(script.includes("analyzedTranscript"), "source highlighting must retain the analyzed source snapshot");
+  assert.ok(demo.learningLoop && demo.learningLoop.rule && demo.learningLoop.nextRun && demo.learningLoop.outcome, "the verified demo must include the complete learning replay contract");
+  assert.strictEqual(demo.learningLoop.rule.id, "renewal-expansion-separation");
+  assert.ok(demo.learningLoop.nextRun.baselineFollowUp.body.toLowerCase().includes("analytics"), "the baseline must visibly repeat the old behavior");
+  assert.ok(!demo.learningLoop.nextRun.learnedFollowUp.body.toLowerCase().includes("analytics"), "the learned draft must visibly apply the rule");
 
   console.log("close-loop-ui.test.js OK");
 }

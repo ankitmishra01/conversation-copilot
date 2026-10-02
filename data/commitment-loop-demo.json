@@ -80,5 +80,45 @@
       "nextStepDate": "Friday, October 9",
       "stageSuggestion": "Renewal - security review"
     }
+  },
+  "learningLoop": {
+    "demoVersion": "2026-10-02",
+    "edit": {
+      "label": "Keep the renewal email focused",
+      "remove": "I will also include a separate analytics add-on option for next quarter, without tying it to the renewal decision."
+    },
+    "rule": {
+      "id": "renewal-expansion-separation",
+      "label": "Separate renewal execution from speculative expansion",
+      "instruction": "Keep speculative expansion out of renewal-critical customer follow-ups unless the customer explicitly asks for it there. Preserve the expansion signal in CRM for a later conversation.",
+      "appliesTo": ["customer-follow-up"],
+      "excludedFrom": ["crm"]
+    },
+    "nextRun": {
+      "account": "Juniper Health",
+      "scenario": "Renewal checkpoint · 18 days later",
+      "transcript": "Maya (Account Executive): We are on track to renew once legal signs the updated data-processing addendum. Jonah (VP Operations): Correct. Send the addendum today and I will route it to legal. The forecasting module is interesting, but let us revisit that after the renewal is signed. Maya: Understood. I will keep today's follow-up focused on the addendum and record forecasting for our next-quarter planning conversation.",
+      "baselineFollowUp": {
+        "subject": "Juniper renewal and analytics next steps",
+        "body": "Hi Jonah,\n\nI will send the updated data-processing addendum today so you can route it to legal. I have also included analytics and forecasting options for next quarter.\n\nBest,\nMaya"
+      },
+      "learnedFollowUp": {
+        "subject": "Juniper renewal next step",
+        "body": "Hi Jonah,\n\nI will send the updated data-processing addendum today so you can route it to legal. I will keep this thread focused on completing the renewal.\n\nBest,\nMaya"
+      },
+      "crmNote": "Renewal pending legal review of the updated data-processing addendum. Forecasting interest is recorded for a separate next-quarter conversation.",
+      "appliedRuleIds": ["renewal-expansion-separation"]
+    },
+    "outcome": {
+      "label": "Simulated downstream outcome",
+      "title": "Renewal advanced without losing the expansion signal",
+      "summary": "The approved follow-up stayed on the legal blocker, Juniper moved into legal review, and forecasting remained visible in CRM for next quarter. This outcome is associated with the approved workflow; the demo does not claim the agent caused it.",
+      "events": [
+        { "time": "09:14", "label": "Approved email queued", "detail": "Renewal-only customer follow-up" },
+        { "time": "09:16", "label": "CRM updated", "detail": "Forecasting retained as a next-quarter signal" },
+        { "time": "11:42", "label": "Customer replied", "detail": "Addendum routed to legal" },
+        { "time": "14:05", "label": "Stage observed", "detail": "Renewal · legal review" }
+      ]
+    }
   }
 }

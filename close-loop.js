@@ -34,14 +34,86 @@
 
   function feedbackState(events) {
     var list = Array.isArray(events) ? events : [];
-    var completed = list.filter(function (event) { return event && event.decision === "approved" && event.completed; }).length;
+    var completedTypes = list.filter(function (event) {
+      return event && event.decision === "approved" && event.completed;
+    }).map(function (event) {
+      return event.artifactType || "legacy-" + list.indexOf(event);
+    }).filter(function (type, index, types) {
+      return types.indexOf(type) === index;
+    });
+    var completed = completedTypes.length;
     var rejected = list.filter(function (event) { return event && event.decision === "rejected"; }).length;
+    var decidedTypes = list.map(function (event) {
+      return event && event.artifactType ? event.artifactType : "legacy-" + list.indexOf(event);
+    }).filter(function (type, index, types) {
+      return types.indexOf(type) === index;
+    });
     return {
       stage: completed >= 2 && rejected === 0 ? "attribution" : list.length ? "evaluation" : "context",
-      pending: Math.max(0, 2 - list.length),
+      pending: Math.max(0, 2 - decidedTypes.length),
       completed: completed,
       rejected: rejected
     };
+  }
+
+  function compareArtifact(before, after) {
+    function lines(value) {
+      return String(value || "").split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
+    }
+    var beforeLines = lines(before);
+    var afterLines = lines(after);
+    return {
+      removed: beforeLines.filter(function (line) { return afterLines.indexOf(line) === -1; }),
+      added: afterLines.filter(function (line) { return beforeLines.indexOf(line) === -1; })
+    };
+  }
+
+  function createLearnedRule(definition, decision) {
+    var rule = definition || {};
+    var event = decision || {};
+    return {
+      id: String(rule.id || "learned-rule"),
+      label: String(rule.label || "Human feedback rule"),
+      instruction: String(rule.instruction || ""),
+      appliesTo: Array.isArray(rule.appliesTo) ? rule.appliesTo.slice() : [],
+      excludedFrom: Array.isArray(rule.excludedFrom) ? rule.excludedFrom.slice() : [],
+      sourceRunId: String(event.runId || "unknown-run"),
+      sourceArtifactType: String(event.artifactType || "unknown"),
+      sourceDecision: String(event.decision || "unknown"),
+      humanEdited: event.edited === true
+    };
+  }
+
+  var PRESENTATION_STEPS = [
+    { title: "Start with account context", action: "Inspect source", stage: "context" },
+    { title: "Trace the claim to the call", action: "Apply human edit", stage: "context" },
+    { title: "Correct the customer-facing action", action: "Approve corrected work", stage: "evaluation" },
+    { title: "Record the human decision", action: "Show learned rule", stage: "evaluation" },
+    { title: "Turn the edit into reusable guidance", action: "Review rule", stage: "evaluation" },
+    { title: "Carry feedback into the next run", action: "Run next conversation", stage: "agent" },
+    { title: "See exactly what changed", action: "Reveal associated outcome", stage: "agent" },
+    { title: "Connect action to an observed result", action: "Restart presentation", stage: "attribution" }
+  ];
+
+  function presentationStep(index) {
+    var bounded = Math.max(0, Math.min(PRESENTATION_STEPS.length - 1, Number(index) || 0));
+    return Object.assign({ index: bounded, total: PRESENTATION_STEPS.length }, PRESENTATION_STEPS[bounded]);
+  }
+
+  function presentationVisibility(index) {
+    var step = presentationStep(index).index;
+    return {
+      replay: step >= 4,
+      rule: step >= 4,
+      nextRun: step >= 6,
+      outcome: step >= 7
+    };
+  }
+
+  function qualifiesForDemoRule(correction, original, finalText, event, verifiedDemo) {
+    var removal = String(correction && correction.remove || "");
+    return verifiedDemo === true && event && event.decision === "approved" && event.edited === true &&
+      removal.length > 0 && String(original || "").indexOf(removal) !== -1 && String(finalText || "").indexOf(removal) === -1;
   }
 
   function artifactText(type, analysis) {
@@ -97,10 +169,150 @@
     var demoData = null;
     var activeFilter = "all";
     var analyzedTranscript = "";
+    var guidedStep = 0;
+    var learnedRule = null;
+    var presentationActive = false;
+    var isVerifiedDemoRun = false;
 
     function setStatus(message, tone) {
       status.textContent = message;
       status.dataset.tone = tone || "idle";
+    }
+
+    function populateLearningReplay() {
+      if (!demoData || !demoData.learningLoop || !learnedRule) return false;
+      var loop = demoData.learningLoop;
+      var rule = learnedRule;
+      el("learningRuleTitle").textContent = rule.label;
+      el("learningRuleText").textContent = rule.instruction;
+      el("ruleAppliesTo").textContent = rule.appliesTo.join(", ");
+      el("ruleExcludedFrom").textContent = rule.excludedFrom.join(", ");
+      el("humanRemovedText").textContent = loop.edit.remove;
+      el("nextRunTitle").textContent = loop.nextRun.account + " renewal checkpoint";
+      el("nextRunMeta").textContent = loop.nextRun.scenario;
+      el("baselineSubject").textContent = loop.nextRun.baselineFollowUp.subject;
+      el("baselineBody").textContent = loop.nextRun.baselineFollowUp.body;
+      el("learnedSubject").textContent = loop.nextRun.learnedFollowUp.subject;
+      el("learnedBody").textContent = loop.nextRun.learnedFollowUp.body;
+      el("appliedRuleLabel").textContent = "Applied rule · " + rule.label;
+      el("nextRunCrm").textContent = loop.nextRun.crmNote;
+      el("outcomeTitle").textContent = loop.outcome.title;
+      el("outcomeSummary").textContent = loop.outcome.summary;
+      var timeline = el("outcomeTimeline");
+      timeline.innerHTML = "";
+      loop.outcome.events.forEach(function (event) {
+        var item = document.createElement("li");
+        item.innerHTML = "<time></time><div><strong></strong><span></span></div>";
+        item.querySelector("time").textContent = event.time;
+        item.querySelector("strong").textContent = event.label;
+        item.querySelector("span").textContent = event.detail;
+        timeline.appendChild(item);
+      });
+      return true;
+    }
+
+    function applyDemoEdit() {
+      if (!demoData || !demoData.learningLoop) return false;
+      var editor = el("followupEditor");
+      var removal = demoData.learningLoop.edit.remove;
+      if (editor.value.indexOf(removal) === -1) {
+        setStatus("The expected demo sentence is not present. Replay the verified demo before applying this edit.", "error");
+        return false;
+      }
+      editor.value = editor.value.replace(removal, "").replace(/\n{3,}/g, "\n\n").trim();
+      setStatus("Human edit applied. The renewal email now stays focused on the immediate blocker.", "working");
+      editor.focus({ preventScroll: true });
+      return true;
+    }
+
+    function renderPresentationStep() {
+      var step = presentationStep(guidedStep);
+      el("presentationGuide").hidden = false;
+      el("presentationCounter").textContent = (step.index + 1) + " / " + step.total;
+      el("presentationTitle").textContent = step.title;
+      el("presentationNext").textContent = step.action;
+      el("presentationBack").disabled = step.index === 0;
+      el("presentationProgress").style.width = (((step.index + 1) / step.total) * 100) + "%";
+      var copy = [
+        "Follow one customer fact through action, evaluation, the next agent run, and an associated outcome.",
+        "The claim resolves to the exact words in the call before any action is trusted.",
+        "A human removes expansion language from a renewal-critical customer email.",
+        "The approved edit and unchanged CRM record become structured evaluation data.",
+        "The feedback is scoped: change the customer email, but keep the expansion signal in CRM.",
+        "A second fictional conversation tests whether the same mistake happens again.",
+        "The verified replay shows the baseline beside the feedback-informed draft.",
+        "The action is linked to what happened next without claiming it caused the outcome."
+      ];
+      el("presentationCopy").textContent = copy[step.index];
+      el("presentationAnnouncement").textContent = "Step " + (step.index + 1) + " of " + step.total + ": " + step.title + ". " + copy[step.index];
+      var visibility = presentationVisibility(step.index);
+      el("learningReplay").hidden = !visibility.replay;
+      el("learningRulePanel").hidden = !visibility.rule;
+      el("nextRunPanel").hidden = !visibility.nextRun;
+      el("outcomePanel").hidden = !visibility.outcome;
+    }
+
+    function revealLearningPanel(panelId) {
+      if (!populateLearningReplay()) return false;
+      var panel = el(panelId);
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      panel.focus({ preventScroll: true });
+      return true;
+    }
+
+    function exitPresentation() {
+      presentationActive = false;
+      guidedStep = 0;
+      learnedRule = null;
+      el("presentationGuide").hidden = true;
+      el("learningReplay").hidden = true;
+      ["learningRulePanel", "nextRunPanel", "outcomePanel"].forEach(function (id) { el(id).hidden = true; });
+    }
+
+    function advancePresentation() {
+      if (!presentationActive) return;
+      if (guidedStep === 0) {
+        var first = filterEvidence(currentAnalysis, "all")[0];
+        if (first) showSource(first);
+      } else if (guidedStep === 1) {
+        if (!applyDemoEdit()) return;
+      } else if (guidedStep === 2) {
+        var original = artifactText("follow-up", currentAnalysis);
+        var finalDraft = el("followupEditor").value;
+        var candidate = { decision: "approved", edited: root.CommitmentEvals.wordChangeRatio(original, finalDraft) > 0 };
+        if (!qualifiesForDemoRule(demoData && demoData.learningLoop && demoData.learningLoop.edit, original, finalDraft, candidate, isVerifiedDemoRun)) {
+          setStatus("The guided replay needs the verified human correction before approval.", "error");
+          return;
+        }
+        decide("follow-up", "approved", "guided-replay");
+        decide("crm", "approved", "guided-replay");
+      } else if (guidedStep === 3) {
+        revealLearningPanel("learningRulePanel");
+      } else if (guidedStep === 4) {
+        revealLearningPanel("learningRulePanel");
+      } else if (guidedStep === 5) {
+        revealLearningPanel("nextRunPanel");
+      } else if (guidedStep === 6) {
+        revealLearningPanel("outcomePanel");
+      } else {
+        startPresentation();
+        return;
+      }
+      guidedStep += 1;
+      renderPresentationStep();
+    }
+
+    function startPresentation() {
+      presentationActive = true;
+      guidedStep = 0;
+      learnedRule = null;
+      ["learningRulePanel", "nextRunPanel", "outcomePanel"].forEach(function (id) { el(id).hidden = true; });
+      el("learningReplay").hidden = true;
+      loadDemo(false, true).then(function () {
+        renderPresentationStep();
+        el("presentationGuide").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     }
 
     function apiHeaders() {
@@ -200,6 +412,7 @@
     }
 
     function renderAnalysis(analysis, label, runMeta) {
+      isVerifiedDemoRun = Boolean(runMeta && runMeta.verified);
       currentAnalysis = analysis;
       currentRunId = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       currentStartedAt = new Date().toISOString();
@@ -258,7 +471,8 @@
 
     function renderMetrics() {
       var events = ledger.list();
-      var metrics = root.CommitmentEvals.calculateMetrics(events);
+      var visibleEvents = currentRunId ? root.CommitmentEvals.eventsForRun(events, currentRunId) : events;
+      var metrics = root.CommitmentEvals.calculateMetrics(visibleEvents);
       el("metricDecisions").textContent = metrics.totalDecisions;
       el("metricApproval").textContent = metrics.approvalRate + "%";
       el("metricEditing").textContent = metrics.averageEditRate + "%";
@@ -266,15 +480,15 @@
       el("metricCompleted").textContent = metrics.completedActions;
       var list = el("decisionLedger");
       list.innerHTML = "";
-      events.slice().reverse().slice(0, 8).forEach(function (event) {
+      visibleEvents.slice().reverse().slice(0, 8).forEach(function (event) {
         var item = document.createElement("li");
         item.innerHTML = "<strong></strong><span></span>";
         item.querySelector("strong").textContent = event.artifactType === "follow-up" ? "Follow-up email" : "CRM update";
         item.querySelector("span").textContent = event.decision + (event.edited ? " · edited " + Math.round(event.editRatio * 100) + "%" : " · no edits") + " · " + event.decisionSeconds + "s";
         list.appendChild(item);
       });
-      el("ledgerEmpty").hidden = events.length > 0;
-      renderSandbox(events);
+      el("ledgerEmpty").hidden = visibleEvents.length > 0;
+      renderSandbox(visibleEvents);
       renderFeedbackProgress();
     }
 
@@ -298,7 +512,7 @@
       el("sandboxEmpty").hidden = out.children.length > 0;
     }
 
-    function decide(type, decision) {
+    function decide(type, decision, decisionSource) {
       if (!currentAnalysis) return;
       var prefix = type === "follow-up" ? "followup" : "crm";
       var reason = el(prefix + "Reason").value.trim();
@@ -318,17 +532,25 @@
         reason: reason,
         startedAt: currentStartedAt,
         decidedAt: new Date().toISOString(),
-        completed: decision === "approved"
+        completed: decision === "approved",
+        decisionSource: decisionSource || "manual",
+        demoVersion: isVerifiedDemoRun && demoData && demoData.learningLoop ? demoData.learningLoop.demoVersion : null
       });
+      if (type === "follow-up" && demoData && demoData.learningLoop && qualifiesForDemoRule(demoData.learningLoop.edit, original, finalText, event, isVerifiedDemoRun)) {
+        learnedRule = createLearnedRule(demoData.learningLoop.rule, event);
+        event.learnedRule = learnedRule;
+      }
       ledger.add(event);
       var decisionEl = el(prefix + "Decision");
       decisionEl.textContent = decision === "approved" ? (event.edited ? "Approved with edits" : "Approved unchanged") : "Rejected · learning captured";
       decisionEl.dataset.tone = decision === "approved" ? "complete" : "rejected";
       setStatus(decision === "approved" ? "Action completed in the demo sandbox." : "Rejection captured for the learning loop.", decision === "approved" ? "complete" : "ready");
       renderMetrics();
+      return event;
     }
 
-    function loadDemo(shouldScroll) {
+    function loadDemo(shouldScroll, keepPresentation) {
+      if (!keepPresentation) exitPresentation();
       return fetch("/data/commitment-loop-demo.json", { cache: "no-store" }).then(function (response) {
         if (!response.ok) throw new Error("demo_unavailable");
         return response.json();
@@ -347,6 +569,7 @@
     }
 
     function analyze() {
+      exitPresentation();
       var text = transcript.value.trim();
       if (!text) {
         setStatus("Add a transcript or load the verified demo first.", "error");
@@ -390,7 +613,7 @@
       var sourcePreview = el("sourcePreview");
       sourcePreview.innerHTML = "<p>Transcript changed. Run analysis before tracing evidence to this input.</p>";
     });
-    el("loadLoopDemo").addEventListener("click", function () { loadDemo(true); });
+    el("loadLoopDemo").addEventListener("click", function () { loadDemo(true, false); });
     el("analyzeLoop").addEventListener("click", analyze);
     Array.prototype.slice.call(document.querySelectorAll("[data-evidence-filter]")).forEach(function (button) {
       button.addEventListener("click", function () {
@@ -405,6 +628,14 @@
     el("rejectFollowup").addEventListener("click", function () { decide("follow-up", "rejected"); });
     el("approveCrm").addEventListener("click", function () { decide("crm", "approved"); });
     el("rejectCrm").addEventListener("click", function () { decide("crm", "rejected"); });
+    el("applyDemoEdit").addEventListener("click", applyDemoEdit);
+    el("startPresentation").addEventListener("click", startPresentation);
+    el("presentationNext").addEventListener("click", advancePresentation);
+    el("presentationBack").addEventListener("click", function () {
+      guidedStep = Math.max(0, guidedStep - 1);
+      renderPresentationStep();
+    });
+    el("presentationRestart").addEventListener("click", startPresentation);
     el("exportLedger").addEventListener("click", function () {
       var blob = new Blob([ledger.exportJson()], { type: "application/json" });
       var url = URL.createObjectURL(blob);
@@ -418,17 +649,17 @@
     el("clearLedger").addEventListener("click", function () {
       ledger.clear();
       renderMetrics();
-      loadDemo(false);
+      loadDemo(false, false);
       setStatus("Verified demo reset. Local evaluation ledger cleared.", "idle");
     });
 
     renderMetrics();
     var launchParams = new URLSearchParams(root.location.search || "");
     if (launchParams.get("demo") === "commitment-loop" || launchParams.get("view") === "loop") {
-      loadDemo(false);
+      loadDemo(false, false);
     }
     root.addEventListener("productviewchange", function (event) {
-      if (event.detail && event.detail.view === "loop" && !currentAnalysis) loadDemo(false);
+      if (event.detail && event.detail.view === "loop" && !currentAnalysis) loadDemo(false, false);
     });
   }
 
@@ -441,6 +672,11 @@
     sourceMatch: sourceMatch,
     filterEvidence: filterEvidence,
     feedbackState: feedbackState,
+    compareArtifact: compareArtifact,
+    createLearnedRule: createLearnedRule,
+    presentationStep: presentationStep,
+    presentationVisibility: presentationVisibility,
+    qualifiesForDemoRule: qualifiesForDemoRule,
     artifactText: artifactText,
     sandboxRecord: sandboxRecord,
     prepareDemoAnalysis: prepareDemoAnalysis,
