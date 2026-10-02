@@ -9,6 +9,15 @@ function clean(value, limit) {
   return String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, limit || 4000);
 }
 
+function cleanMultiline(value, limit) {
+  return String(value == null ? "" : value)
+    .replace(/\r\n?/g, "\n")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, limit || 4000);
+}
+
 function normalizedText(value) {
   return clean(value, MAX_TRANSCRIPT_CHARS).toLocaleLowerCase();
 }
@@ -65,7 +74,7 @@ function normalizeAnalysis(raw, transcript) {
     expansionSignals: normalizeEvidenceList(input.expansionSignals, transcript, "expansion", warnings, 8),
     followUp: {
       subject: clean(followUp.subject, 180),
-      body: clean(followUp.body, 4000)
+      body: cleanMultiline(followUp.body, 4000)
     },
     crm: {
       summary: clean(crm.summary, 1800),

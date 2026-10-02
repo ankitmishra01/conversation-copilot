@@ -5,6 +5,10 @@ negotiation, a client check-in. It listens through your microphone, transcribes 
 if your scenario spans two languages, and gives you tactical "what to say next" coaching grounded in your
 own background and goal — never in anything the model invents.
 
+It also includes **Close the Loop**, a post-call workspace that turns a transcript into source-backed
+commitments, an editable follow-up email, and a CRM update. Approvals, edits, and rejections become a
+local evaluation ledger so you can see whether the agent is improving rather than merely generating.
+
 ## Quickstart
 
 ```bash
@@ -16,6 +20,10 @@ cp .env.example .env.local                         # then fill in AI_GATEWAY_API
 python3 -m http.server 4174                        # local static preview at http://localhost:4174
 ```
 
+Open `http://localhost:4174/?demo=commitment-loop#closeLoop` to load the bundled fictional renewal-call
+demo without an API key. The static server can show the verified snapshot and the complete approval/eval
+flow; use a Vercel deployment or `vercel dev` for live model analysis through `/api/close-loop`.
+
 Deploy for real use (the browser needs HTTPS for microphone access, and `/api/*` needs a serverless
 runtime):
 
@@ -23,6 +31,34 @@ runtime):
 npm install -g vercel
 vercel --prod
 ```
+
+## Close the Loop
+
+The post-call workflow is deliberately narrow:
+
+1. Paste a transcript, copy the live transcript, or load the verified demo.
+2. Run live analysis to extract commitments, blockers, and expansion signals. Every claim includes a
+   verbatim source quote and is checked against the submitted transcript before it is marked verified.
+3. Review and edit the follow-up email and CRM update.
+4. Approve an artifact to complete it in the clearly labeled demo outbox/account record, or reject it
+   with a reason.
+5. Inspect or export the browser-local evaluation ledger: approval rate, editing required, decision
+   time, and completed actions.
+
+The bundled transcript and snapshot live in `data/commitment-loop-demo.json`. They are fictional and
+safe to present. The live endpoint uses Vercel AI Gateway and defaults to `openai/gpt-6.1-sol-fast`;
+set `AI_GATEWAY_LOOP_MODEL` to override it. The endpoint also honors the existing `COPILOT_KEY`, access
+window, and credit-reserve controls.
+
+### Trust and privacy boundaries
+
+- Unsupported source quotes remain visible as unsupported warnings; they are never silently promoted
+  to facts.
+- Live transcripts are sent to the configured model only when **Run live analysis** is pressed.
+- Evaluation events are stored in local browser storage. They leave the browser only when the user
+  explicitly exports the JSON file.
+- Email and CRM completion happens in a demo sandbox. The interface never claims to have contacted a
+  customer or written to a real CRM.
 
 ## Configuring your profile
 

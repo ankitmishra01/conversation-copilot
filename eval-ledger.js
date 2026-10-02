@@ -105,7 +105,14 @@
 
     return {
       list: list,
-      add: function (event) { var events = list(); events.push(event); write(events); return event; },
+      add: function (event) {
+        var events = list().filter(function (existing) {
+          return !(existing.runId === event.runId && existing.artifactType === event.artifactType);
+        });
+        events.push(event);
+        write(events.slice(-200));
+        return event;
+      },
       clear: function () { target.removeItem(storageKey); },
       exportJson: function () { return JSON.stringify(list(), null, 2); }
     };

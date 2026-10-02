@@ -61,6 +61,10 @@ function run() {
   ledgerA.add(rejected);
   const ledgerB = evals.createLedger(storage, "test-ledger");
   assert.strictEqual(ledgerB.list().length, 2, "events must survive a new ledger instance");
+  const revisedApproval = Object.assign({}, approved, { id: "replacement", final: "Final approved copy", editRatio: 1 });
+  ledgerB.add(revisedApproval);
+  assert.strictEqual(ledgerB.list().length, 2, "a repeated decision for the same run and artifact must replace, not double-count");
+  assert.strictEqual(ledgerB.list().find((event) => event.artifactType === "follow-up").id, "replacement");
   assert.ok(ledgerB.exportJson().includes('"decision": "approved"'), "export must contain readable decision data");
   ledgerB.clear();
   assert.deepStrictEqual(ledgerA.list(), [], "clear must remove the persisted ledger");

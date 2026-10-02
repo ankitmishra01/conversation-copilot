@@ -39,7 +39,7 @@ async function run() {
     ],
     blockers: [{ label: "Security review", sourceQuote: "security packet" }],
     expansionSignals: [{ label: "Analytics add-on", sourceQuote: "analytics add-on" }],
-    followUp: { subject: "Next steps", body: "I will send the security packet by Friday." },
+    followUp: { subject: "Next steps", body: "Hi Leo,\n\nI will send the security packet by Friday.\n\nBest,\nMaya" },
     crm: { summary: "Security review remains open.", nextStep: "Send packet", nextStepDate: null, stageSuggestion: "" }
   }, transcript);
 
@@ -48,6 +48,7 @@ async function run() {
   assert.ok(normalized.warnings.some((warning) => warning.includes("c2")), "unsupported commitments must produce a visible warning");
   assert.strictEqual(normalized.blockers[0].verified, true, "a source fragment present in the transcript is supported");
   assert.strictEqual(normalized.expansionSignals[0].verified, true, "expansion evidence present in the transcript is supported");
+  assert.ok(normalized.followUp.body.includes("\n\n"), "email paragraph breaks must survive response normalization");
 
   const emptyRes = fakeRes();
   await closeLoop.handler({ method: "POST", headers: {}, body: { transcript: "   " } }, emptyRes);
