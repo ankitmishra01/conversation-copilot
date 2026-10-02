@@ -8,4 +8,5 @@ Promise.resolve()
   .then(() => require("./translate.test").run())
   .then(() => require("./profile-endpoint.test").run())
   .then(() => require("./close-loop.test").run())
+  .then(() => require("./eval-ledger.test").run())
   .catch((e) => { console.error(e); process.exit(1); });
