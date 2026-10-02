@@ -7,4 +7,5 @@ Promise.resolve()
   .then(() => require("./access.test").run())
   .then(() => require("./translate.test").run())
   .then(() => require("./profile-endpoint.test").run())
+  .then(() => require("./close-loop.test").run())
   .catch((e) => { console.error(e); process.exit(1); });
