@@ -49,6 +49,12 @@ The post-call workflow is deliberately narrow:
 5. Watch the trace advance from context to evaluation and attribution, then inspect or export the
    browser-local ledger: approval rate, editing required, decision time, and completed actions.
 
+For an interview-safe walkthrough, open `?view=loop&demo=commitment-loop` and select **Present the full
+loop**. The eight-step verified replay follows one claim from transcript evidence through a human edit,
+captures that edit as a scoped evaluation rule, then compares a second run with and without the rule.
+It finishes with a clearly labeled fictional downstream outcome. The replay is deterministic and does
+not depend on model availability; **Run live analysis** remains available as a separate path.
+
 The bundled transcript and snapshot live in `data/commitment-loop-demo.json`. They are fictional and
 safe to present. The live endpoint uses Vercel AI Gateway and defaults to `openai/gpt-6.1-sol-fast`;
 set `AI_GATEWAY_LOOP_MODEL` to override it. The endpoint also honors the existing `COPILOT_KEY`, access

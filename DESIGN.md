@@ -33,6 +33,9 @@ Violet indicates selection, focus, and the next primary action. Green is reserve
 - Rejection requires a reason. Approval creates a safe local completion record.
 - Verified demo data loads without a model request. Live analysis is secondary and must fall back without hiding verified work.
 - Mobile controls are at least 44px, modes remain visible in a horizontal tab strip, and content follows summary → evidence → decisions.
+- The verified presentation follows one causal-looking thread without claiming causality: source evidence → human correction → scoped rule → changed next-run output → associated fictional outcome.
+- Learned rules always name their application scope and exclusions. A customer-email preference must not silently erase useful CRM memory.
+- Presentation mode is a deterministic replay with explicit controls and labels; live model behavior is never substituted into the verified story.
 
 ## Accessibility
 
