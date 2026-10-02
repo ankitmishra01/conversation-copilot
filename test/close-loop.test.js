@@ -37,8 +37,8 @@ async function run() {
         sourceQuote: "We approved the enterprise expansion."
       }
     ],
-    blockers: [{ label: "Security review", sourceQuote: "security packet" }],
-    expansionSignals: [{ label: "Analytics add-on", sourceQuote: "analytics add-on" }],
+    blockers: [{ label: "Security review", sourceSpeaker: "Maya", sourceDate: "2026-10-02", sourceType: "call transcript", sourceQuote: "security packet" }],
+    expansionSignals: [{ label: "Analytics add-on", sourceSpeaker: "Leo", sourceDate: "2026-10-02", sourceType: "call transcript", sourceQuote: "analytics add-on" }],
     followUp: { subject: "Next steps", body: "Hi Leo,\n\nI will send the security packet by Friday.\n\nBest,\nMaya" },
     crm: { summary: "Security review remains open.", nextStep: "Send packet", nextStepDate: null, stageSuggestion: "" }
   }, transcript);
@@ -47,6 +47,9 @@ async function run() {
   assert.strictEqual(normalized.commitments[1].verified, false, "an invented quote must never be verified");
   assert.ok(normalized.warnings.some((warning) => warning.includes("c2")), "unsupported commitments must produce a visible warning");
   assert.strictEqual(normalized.blockers[0].verified, true, "a source fragment present in the transcript is supported");
+  assert.strictEqual(normalized.blockers[0].sourceSpeaker, "Maya");
+  assert.strictEqual(normalized.blockers[0].sourceDate, "2026-10-02");
+  assert.strictEqual(normalized.blockers[0].sourceType, "call transcript");
   assert.strictEqual(normalized.expansionSignals[0].verified, true, "expansion evidence present in the transcript is supported");
   assert.ok(normalized.followUp.body.includes("\n\n"), "email paragraph breaks must survive response normalization");
 
@@ -60,7 +63,10 @@ async function run() {
   assert.strictEqual(methodRes.statusCode, 405, "non-POST requests must be rejected");
 
   const realFetch = global.fetch;
-  global.fetch = async () => ({
+  let gatewayRequest;
+  global.fetch = async (_url, options) => {
+    gatewayRequest = JSON.parse(options.body);
+    return ({
     ok: true,
     json: async () => ({
       choices: [{
@@ -76,7 +82,8 @@ async function run() {
         }
       }]
     })
-  });
+    });
+  };
   try {
     const okRes = fakeRes();
     await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, okRes);
@@ -84,6 +91,7 @@ async function run() {
     const body = JSON.parse(okRes.body);
     assert.strictEqual(body.commitments[0].verified, true, "the endpoint must return normalized evidence, not raw model output");
     assert.strictEqual(body.model, "openai/gpt-6.1-sol-fast");
+    assert.strictEqual(gatewayRequest.response_format, undefined, "gateway requests must not force response_format because supported models differ");
   } finally {
     global.fetch = realFetch;
   }
