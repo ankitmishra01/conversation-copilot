@@ -1,5 +1,7 @@
 // test/close-loop-ui.test.js
 const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
 const demo = require("../data/commitment-loop-demo.json");
 const analysisApi = require("../api/close-loop");
 
@@ -23,6 +25,21 @@ function run() {
   const record = ui.sandboxRecord("crm", "Final CRM note", "2026-10-01T12:00:00.000Z");
   assert.strictEqual(record.kind, "account-record");
   assert.strictEqual(record.label, "CRM note written to demo account");
+
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(html.includes("Close the Loop — a Ghost product concept"), "the page title must frame the assessment concept");
+  assert.ok(html.includes("Independent interview concept by Ankit Mishra"), "the page must not imply official Ghost ownership");
+  assert.ok(html.includes("Context → agents → evals → attribution"), "the hero must connect the prototype to Ghost's product thesis");
+  assert.ok(html.includes("Try the verified workflow"), "the branded hero needs a direct demo CTA");
+
+  const css = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
+  assert.ok(css.includes("--ghost-navy: #0c1428"), "the theme must include Ghost's deep navy direction");
+  assert.ok(css.includes("--ghost-violet: #8b5cf6"), "the theme must include Ghost's violet accent");
+  assert.ok(css.includes("--ghost-ivory: #f7f7f2"), "the theme must include Ghost's warm off-white canvas");
+
+  const script = fs.readFileSync(path.join(__dirname, "..", "close-loop.js"), "utf8");
+  assert.ok(script.includes('classList.add("concept-mode")'), "the demo URL must focus the page on the assessment concept");
+  assert.ok(script.includes("loadDemo(false)"), "automatic demo loading must preserve the branded hero position");
 
   console.log("close-loop-ui.test.js OK");
 }

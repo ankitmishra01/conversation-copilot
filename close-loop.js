@@ -204,7 +204,7 @@
       renderMetrics();
     }
 
-    function loadDemo() {
+    function loadDemo(shouldScroll) {
       return fetch("/data/commitment-loop-demo.json", { cache: "no-store" }).then(function (response) {
         if (!response.ok) throw new Error("demo_unavailable");
         return response.json();
@@ -212,7 +212,7 @@
         demoData = data;
         transcript.value = data.transcript;
         renderAnalysis(prepareDemoAnalysis(data.analysis), "Verified demo snapshot · " + data.account);
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (shouldScroll !== false) section.scrollIntoView({ behavior: "smooth", block: "start" });
       }).catch(function () {
         setStatus("The bundled demo could not be loaded.", "error");
       });
@@ -250,7 +250,7 @@
       transcript.value = (document.getElementById("transcript") || {}).value || "";
       setStatus(transcript.value.trim() ? "Live transcript copied. Ready to analyze." : "The live transcript is empty.", transcript.value.trim() ? "ready" : "error");
     });
-    el("loadLoopDemo").addEventListener("click", loadDemo);
+    el("loadLoopDemo").addEventListener("click", function () { loadDemo(true); });
     el("analyzeLoop").addEventListener("click", analyze);
     el("approveFollowup").addEventListener("click", function () { decide("follow-up", "approved"); });
     el("rejectFollowup").addEventListener("click", function () { decide("follow-up", "rejected"); });
@@ -273,7 +273,10 @@
     });
 
     renderMetrics();
-    if (new URLSearchParams(root.location.search || "").get("demo") === "commitment-loop") loadDemo();
+    if (new URLSearchParams(root.location.search || "").get("demo") === "commitment-loop") {
+      document.body.classList.add("concept-mode");
+      loadDemo(false);
+    }
   }
 
   if (typeof document !== "undefined") {
