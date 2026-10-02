@@ -4,278 +4,165 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Conversation Copilot</title>
+  <title>Close the Loop — an independent Ghost concept</title>
+  <meta name="description" content="A working Ghost product concept that turns customer conversations into evidence-backed actions, evaluations, and attributed outcomes.">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/styles.css">
   <script defer src="/eval-ledger.js"></script>
+  <script defer src="/view-controller.js"></script>
   <script defer src="/app.js"></script>
   <script defer src="/close-loop.js"></script>
 </head>
-<body>
+<body data-active-view="live">
   <a class="skip-nav" href="#main">Skip to main content</a>
-  <header class="topbar">
-    <a class="brand" href="/">Conversation Copilot</a>
-    <nav>
-      <a href="#translator">Live copilot</a>
-      <a href="#answerSection">Answer coach</a>
-      <a href="#closeLoop">Close the loop</a>
+  <header class="product-header">
+    <a class="ghost-brand" href="?view=loop&demo=commitment-loop" aria-label="Ghost Close the Loop concept">
+      <img src="https://ghostgtm.ai/_next/image?url=%2Fimages%2Fbrand%2Fwordmark-paper.png&w=128&q=75" alt="Ghost">
+    </a>
+    <p class="concept-credit">Independent interview concept by Ankit Mishra</p>
+    <nav class="mode-switcher" aria-label="Product modes" role="tablist">
+      <a role="tab" aria-controls="view-live" data-view-target="live" href="?view=live">Live copilot</a>
+      <a role="tab" aria-controls="view-coach" data-view-target="coach" href="?view=coach">Answer coach</a>
+      <a role="tab" aria-controls="view-loop" data-view-target="loop" href="?view=loop&demo=commitment-loop">Close the Loop</a>
     </nav>
   </header>
 
   <main id="main">
-    <section class="hero">
-      <div class="hero-grid">
+    <section class="product-view" id="view-live" role="tabpanel" data-view-panel="live" aria-labelledby="liveTitle">
+      <header class="mode-hero compact-hero">
         <div>
-          <p class="eyebrow">Live conversation copilot</p>
-          <h1>Turn live speech into a goal-directed answer.</h1>
-          <p>Listen, translate if needed, understand the intent, and rehearse a concise answer from one focused console.</p>
+          <p class="eyebrow">Conversation intelligence / live</p>
+          <h1 id="liveTitle">Hear the question. Shape the answer.</h1>
+          <p>Capture a conversation, understand what matters, and get a concise response grounded in your own proof.</p>
         </div>
-        <div class="hero-stack" aria-label="Workflow">
-          <span>01 Listen</span>
-          <span>02 Understand</span>
-          <span>03 Answer</span>
-        </div>
-      </div>
-      <div class="notice">
-        Browser v1 listens through the microphone. For YouTube or laptop audio, play the audio through speakers or route audio to the mic. Direct system-audio capture needs a native app, extension, or transcription backend.
-      </div>
-    </section>
-
-    <section class="workspace" id="translator">
-      <div class="panel control-panel">
-        <div class="panel-kicker">
-          <h2>Capture</h2>
-          <span id="status">Ready.</span>
-        </div>
-        <p id="accessNotice" class="access-notice"></p>
-        <label>Scenario
-          <select id="role"></select>
-        </label>
-        <label>Content type
-          <select id="mode">
-            <option value="conversation">Live conversation</option>
-            <option value="recording">Recorded audio</option>
-          </select>
-        </label>
-        <div class="button-row">
-          <button id="start">Start listening</button>
-          <button id="pauseMine" type="button" class="secondary-button listen-toggle">Pause my voice</button>
-          <button id="stop">Stop</button>
-          <button id="clear">Clear</button>
-        </div>
-        <div class="button-row">
-          <button id="compact" type="button" class="secondary-button">Compact</button>
-          <button id="overlay" type="button" class="secondary-button">Corner overlay</button>
-          <button id="popout" type="button" class="secondary-button">Mini window</button>
-        </div>
-        <label class="check" title="Answer automatically when they pause"><input type="checkbox" id="autoAnswer" checked> <span>Auto-answer<span class="check-long"> when they pause</span></span></label>
-        <p class="small">Tip: Chrome supports the Web Speech API best. If dictation is blocked, use HTTPS or localhost and allow microphone access.</p>
-      </div>
-
-      <div class="panel transcript-panel">
-        <h2 id="transcriptTitle">Live transcript</h2>
-        <textarea id="transcript" placeholder="Live transcript appears here. You can also paste text manually."></textarea>
-      </div>
-
-      <div class="panel translation-panel">
-        <div class="panel-head">
-          <h2 id="translationTitle">Notes</h2>
-          <button id="translate">Translate now</button>
-        </div>
-        <p id="topic" class="topic-pill">Topic: listening</p>
-        <div id="flow" class="flow" aria-live="polite"></div>
-        <div class="focus-card" aria-live="polite">
-          <h3>Focus now</h3>
-          <p id="focusSummary">Listen for the question, then anchor your answer in one proof point.</p>
-          <ul id="focusBullets">
-            <li>Answer directly.</li>
-            <li>Give one concrete example.</li>
-            <li>Link it back to your goal.</li>
-          </ul>
-        </div>
-        <p id="translation" class="translation-output">Translation or notes will appear here.</p>
-        <h3>What it means for your reply</h3>
-        <p id="intent">The response plan will appear here.</p>
-      </div>
-    </section>
-
-    <section class="answer-lab" id="answerSection">
-      <div class="panel">
-        <h2>Suggested answer block</h2>
-        <dl class="answer-grid">
-          <div><dt>Start with</dt><dd id="direct">Waiting for input.</dd></div>
-          <div><dt>Proof to use</dt><dd id="proof">Waiting for input.</dd></div>
-          <div><dt id="phraseLabel">Suggested answer</dt><dd id="phrase">Waiting for input.</dd><ul id="sayPoints" class="say-points"></ul><dd id="phraseGloss" class="gloss" hidden></dd><dd id="phraseWatch" class="watch" hidden></dd></div>
-          <div><dt>Follow-up question</dt><dd id="followup">Waiting for input.</dd></div>
-        </dl>
-      </div>
-      <div class="panel context-panel">
-        <div class="panel-head">
-          <h2>Background context used</h2>
-          <span id="profileStatus" class="pill">Loading profile</span>
-        </div>
-        <p id="fitSummary" class="context-summary">Scenario-specific background will appear here once a scenario is selected.</p>
-        <div class="context-columns">
-          <div>
-            <h3>Proof bank</h3>
-            <ul id="proofBank" class="tight-list"></ul>
-          </div>
-          <div>
-            <h3>Preferred verbs</h3>
-            <p id="verbBank" class="verb-bank">clarify, prioritize, align, ship, measure</p>
-          </div>
-        </div>
-      </div>
-      <div class="panel">
-        <h2 id="answerTitle">Your practice answer</h2>
-        <textarea id="answer" placeholder="Draft your answer here, then score it."></textarea>
-        <div class="button-row">
-          <button id="score">Score answer</button>
-          <button id="copy">Copy phrase</button>
-        </div>
-        <p id="scoreText">Score will appear here.</p>
-        <ul id="feedback"></ul>
-      </div>
-    </section>
-
-    <section class="loop-shell" id="closeLoop" aria-labelledby="loopTitle">
-      <header class="loop-hero">
-        <div>
-          <p class="eyebrow">Post-call workspace · Human-gated execution</p>
-          <h2 id="loopTitle">Close the loop.</h2>
-          <p>Turn a conversation into source-backed commitments, complete the follow-up, and capture every human decision as evaluation data.</p>
-        </div>
-        <ol class="loop-sequence" aria-label="Close the loop workflow">
-          <li><span>01</span> Context</li>
-          <li><span>02</span> Draft</li>
-          <li><span>03</span> Decide</li>
-          <li><span>04</span> Learn</li>
+        <ol class="mode-sequence" aria-label="Live copilot workflow">
+          <li><span>01</span> Listen</li><li><span>02</span> Understand</li><li><span>03</span> Answer</li>
         </ol>
       </header>
 
-      <div class="loop-input-grid">
-        <div class="panel loop-input-panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-index">INPUT / CALL_01</p>
-              <h3>Conversation evidence</h3>
-            </div>
-            <span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span>
-          </div>
-          <label for="loopTranscript">Call transcript</label>
-          <textarea id="loopTranscript" placeholder="Paste a call transcript, copy the live transcript, or load the verified demo."></textarea>
-          <div class="button-row">
-            <button type="button" id="loadLoopDemo">Load verified demo</button>
-            <button type="button" class="secondary-button" id="useLiveTranscript">Use live transcript</button>
-            <button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button>
-          </div>
-          <p class="privacy-note"><strong>Privacy boundary:</strong> the transcript is sent only for this analysis. Decisions stay in this browser unless you export them.</p>
+      <div class="workspace" id="translator">
+        <div class="panel control-panel">
+          <div class="panel-kicker"><h2>Capture</h2><span id="status" aria-live="polite">Ready.</span></div>
+          <p id="accessNotice" class="access-notice"></p>
+          <label>Scenario<select id="role"></select></label>
+          <label>Content type<select id="mode"><option value="conversation">Live conversation</option><option value="recording">Recorded audio</option></select></label>
+          <div class="button-row"><button id="start">Start listening</button><button id="pauseMine" type="button" class="secondary-button listen-toggle">Pause my voice</button><button id="stop" class="secondary-button">Stop</button><button id="clear" class="secondary-button">Clear</button></div>
+          <div class="button-row"><button id="compact" type="button" class="secondary-button">Compact</button><button id="overlay" type="button" class="secondary-button">Corner overlay</button><button id="popout" type="button" class="secondary-button">Mini window</button></div>
+          <label class="check" title="Answer automatically when they pause"><input type="checkbox" id="autoAnswer" checked> <span>Auto-answer<span class="check-long"> when they pause</span></span></label>
+          <p class="small">Chrome supports microphone capture best. Allow microphone access when prompted; pasted transcripts remain available as a fallback.</p>
         </div>
+        <div class="panel transcript-panel">
+          <div class="panel-head"><h2 id="transcriptTitle">Live transcript</h2><span class="utility-label">Source stream</span></div>
+          <textarea id="transcript" aria-labelledby="transcriptTitle" placeholder="Live transcript appears here. You can also paste text manually."></textarea>
+        </div>
+        <div class="panel translation-panel">
+          <div class="panel-head"><h2 id="translationTitle">Notes</h2><button id="translate">Translate now</button></div>
+          <p id="topic" class="topic-pill">Topic: listening</p>
+          <div id="flow" class="flow" aria-live="polite"></div>
+          <div class="focus-card" aria-live="polite"><h3>Focus now</h3><p id="focusSummary">Listen for the question, then anchor your answer in one proof point.</p><ul id="focusBullets"><li>Answer directly.</li><li>Give one concrete example.</li><li>Link it back to your goal.</li></ul></div>
+          <p id="translation" class="translation-output">Translation or notes will appear here.</p>
+          <h3>What it means for your reply</h3><p id="intent">The response plan will appear here.</p>
+        </div>
+      </div>
+    </section>
 
-        <aside class="loop-principles" aria-label="Product principles">
-          <p class="panel-index">OPERATING RULES</p>
-          <h3>Trust is a product surface.</h3>
-          <dl>
-            <div><dt>Evidence</dt><dd>Every claimed fact carries the words that support it.</dd></div>
-            <div><dt>Permission</dt><dd>Nothing completes until a human approves the exact output.</dd></div>
-            <div><dt>Learning</dt><dd>Edits and rejections become structured feedback, not lost activity.</dd></div>
+    <section class="product-view" id="view-coach" role="tabpanel" data-view-panel="coach" aria-labelledby="coachTitle" hidden>
+      <header class="mode-hero compact-hero">
+        <div><p class="eyebrow">Practice / evaluation</p><h1 id="coachTitle">Turn a rough answer into a credible one.</h1><p>Use the live conversation context, rehearse your response, and see exactly what to sharpen.</p></div>
+        <ol class="mode-sequence" aria-label="Answer coach workflow"><li><span>01</span> Draft</li><li><span>02</span> Score</li><li><span>03</span> Improve</li></ol>
+      </header>
+      <section class="answer-lab" id="answerSection">
+        <div class="panel answer-plan-panel">
+          <div class="panel-head"><h2>Suggested answer</h2><span class="utility-label">From current context</span></div>
+          <dl class="answer-grid">
+            <div><dt>Start with</dt><dd id="direct">Waiting for input.</dd></div>
+            <div><dt>Proof to use</dt><dd id="proof">Waiting for input.</dd></div>
+            <div><dt id="phraseLabel">Suggested answer</dt><dd id="phrase">Waiting for input.</dd><ul id="sayPoints" class="say-points"></ul><dd id="phraseGloss" class="gloss" hidden></dd><dd id="phraseWatch" class="watch" hidden></dd></div>
+            <div><dt>Follow-up question</dt><dd id="followup">Waiting for input.</dd></div>
           </dl>
-        </aside>
-      </div>
-
-      <div id="loopResults" hidden>
-        <section class="loop-summary-band" aria-labelledby="summaryTitle">
-          <div>
-            <p class="panel-index">RUN SUMMARY</p>
-            <h3 id="summaryTitle">What changed and what happens next</h3>
-            <p id="loopSummary"></p>
-          </div>
-          <span id="loopModel" class="model-tag">Model response</span>
-        </section>
-
-        <ul class="loop-warnings" id="loopWarnings" aria-label="Unsupported evidence warnings" hidden></ul>
-
-        <section class="evidence-section" aria-labelledby="evidenceTitle">
-          <div class="section-label">
-            <p class="panel-index">EVIDENCE RAIL</p>
-            <h3 id="evidenceTitle">Facts with standing</h3>
-          </div>
-          <div class="evidence-rail" id="evidenceRail"></div>
-        </section>
-
-        <section class="artifact-grid" aria-label="Human approval queue">
-          <article class="artifact-card">
-            <header>
-              <div><p class="panel-index">ACTION / EMAIL</p><h3>Customer follow-up</h3></div>
-              <span class="decision-state" id="followupDecision">Awaiting review</span>
-            </header>
-            <label for="followupEditor">Editable draft</label>
-            <textarea id="followupEditor" class="artifact-editor"></textarea>
-            <label for="followupReason">Rejection reason</label>
-            <select id="followupReason">
-              <option value="">Select only when rejecting</option>
-              <option>Missing or incorrect context</option>
-              <option>Wrong tone for the customer</option>
-              <option>Action or timing is inaccurate</option>
-              <option>Not useful enough to send</option>
-            </select>
-            <div class="button-row artifact-actions">
-              <button type="button" id="approveFollowup">Approve + queue</button>
-              <button type="button" class="reject-button" id="rejectFollowup">Reject</button>
-            </div>
-          </article>
-
-          <article class="artifact-card">
-            <header>
-              <div><p class="panel-index">ACTION / CRM</p><h3>Account update</h3></div>
-              <span class="decision-state" id="crmDecision">Awaiting review</span>
-            </header>
-            <label for="crmEditor">Editable record</label>
-            <textarea id="crmEditor" class="artifact-editor"></textarea>
-            <label for="crmReason">Rejection reason</label>
-            <select id="crmReason">
-              <option value="">Select only when rejecting</option>
-              <option>Missing or incorrect context</option>
-              <option>Wrong owner or next step</option>
-              <option>Stage suggestion is not justified</option>
-              <option>Not useful enough to write</option>
-            </select>
-            <div class="button-row artifact-actions">
-              <button type="button" id="approveCrm">Approve + write</button>
-              <button type="button" class="reject-button" id="rejectCrm">Reject</button>
-            </div>
-          </article>
-        </section>
-      </div>
-
-      <section class="learning-grid" aria-labelledby="learningTitle">
-        <div class="learning-panel">
-          <div class="section-label">
-            <p class="panel-index">EVALUATION LOOP</p>
-            <h3 id="learningTitle">What the agent learns</h3>
-          </div>
-          <div class="metric-grid">
-            <article><strong id="metricDecisions">0</strong><span>decisions</span></article>
-            <article><strong id="metricApproval">0%</strong><span>approved</span></article>
-            <article><strong id="metricEditing">0%</strong><span>average editing</span></article>
-            <article><strong id="metricTime">0s</strong><span>decision time</span></article>
-            <article><strong id="metricCompleted">0</strong><span>completed actions</span></article>
-          </div>
-          <p class="loop-empty" id="ledgerEmpty">Approve or reject an artifact to create the first eval.</p>
-          <ol class="decision-ledger" id="decisionLedger"></ol>
-          <div class="button-row ledger-actions">
-            <button type="button" class="secondary-button" id="exportLedger">Export evals</button>
-            <button type="button" class="secondary-button" id="clearLedger">Clear local ledger</button>
-          </div>
         </div>
+        <div class="panel practice-panel">
+          <h2 id="answerTitle">Your practice answer</h2>
+          <textarea id="answer" aria-labelledby="answerTitle" placeholder="Draft your answer here, then score it."></textarea>
+          <div class="button-row"><button id="score">Score answer</button><button id="copy" class="secondary-button">Copy phrase</button></div>
+          <p id="scoreText" aria-live="polite">Score will appear here.</p><ul id="feedback"></ul>
+        </div>
+        <div class="panel context-panel">
+          <div class="panel-head"><h2>Background context used</h2><span id="profileStatus" class="pill">Loading profile</span></div>
+          <p id="fitSummary" class="context-summary">Scenario-specific background will appear here once a scenario is selected.</p>
+          <div class="context-columns"><div><h3>Proof bank</h3><ul id="proofBank" class="tight-list"></ul></div><div><h3>Preferred verbs</h3><p id="verbBank" class="verb-bank">clarify, prioritize, align, ship, measure</p></div></div>
+        </div>
+      </section>
+    </section>
 
-        <div class="sandbox-panel">
-          <div class="section-label">
-            <p class="panel-index">DEMO SINK</p>
-            <h3>Completed workflow</h3>
-          </div>
-          <p class="loop-empty" id="sandboxEmpty">Approved actions appear here as a demo outbox and account record.</p>
-          <div class="sandbox-actions" id="sandboxActions"></div>
+    <section class="product-view close-loop-view" id="view-loop" role="tabpanel" data-view-panel="loop" aria-labelledby="conceptTitle" hidden>
+      <header class="concept-intro">
+        <div class="concept-copy">
+          <p class="concept-kicker">A working idea for Ghost's next feedback surface</p>
+          <h1 id="conceptTitle">Close the Loop</h1>
+          <p class="concept-lede">What was said. What acted. What changed.</p>
+          <p class="concept-support">Turn customer conversations into source-backed actions, human decisions, evaluations, and revenue outcomes the next agent can learn from.</p>
+          <div class="concept-actions"><a class="concept-cta" href="#closeLoop">Review the verified workflow</a><a class="concept-secondary" href="https://github.com/ankitmishra01/conversation-copilot" target="_blank" rel="noreferrer">Inspect the build</a></div>
+        </div>
+        <div class="concept-status" aria-label="Current workflow status"><span id="conceptRunLabel"><i></i> Verified demo</span><strong id="conceptFindingCount">6</strong> source-backed findings<strong id="conceptPendingCount">2</strong> decisions pending<small id="conceptAccountLabel">Fictional Northstar renewal call</small></div>
+        <ol class="context-trace" id="contextTrace" aria-label="Context to attribution feedback loop">
+          <li data-stage="context" class="is-current"><span>01</span><strong>Context</strong><small>Every fact carries its source</small></li>
+          <li data-stage="agent"><span>02</span><strong>Agent action</strong><small>Draft work from account reality</small></li>
+          <li data-stage="evaluation"><span>03</span><strong>Evaluation</strong><small>Approve, edit, reject, ignore</small></li>
+          <li data-stage="attribution"><span>04</span><strong>Attribution</strong><small>Connect work to what happened</small></li>
+        </ol>
+      </header>
+
+      <section class="loop-shell" id="closeLoop" aria-labelledby="loopTitle">
+        <header class="loop-workspace-head">
+          <div><p class="panel-index" id="loopAccountEyebrow">ACCOUNT / NORTHSTAR ANALYTICS</p><h2 id="loopAccountName">Renewal and expansion call</h2><p id="loopRunMeta">Verified snapshot · fictional data · browser-local decisions</p></div>
+          <div class="loop-head-actions"><span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span><button type="button" class="secondary-button" id="loadLoopDemo">Replay verified demo</button><button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button></div>
+        </header>
+        <div class="loop-workspace">
+          <aside class="source-column" aria-labelledby="sourceTitle">
+            <div class="column-head"><div><p class="panel-index">CONTEXT</p><h3 id="sourceTitle">Source transcript</h3></div><button type="button" class="text-button" id="useLiveTranscript">Use live transcript</button></div>
+            <label class="transcript-label" for="loopTranscript">Editable transcript</label>
+            <textarea id="loopTranscript" placeholder="Paste a call transcript or load the verified demo."></textarea>
+            <div class="source-preview" id="sourcePreview" tabindex="-1" aria-live="polite"><p>Select a finding to reveal its exact source passage.</p></div>
+            <p class="privacy-note"><strong>Privacy:</strong> live text is sent only when you select Run live analysis. Demo decisions stay in this browser unless exported.</p>
+          </aside>
+          <section class="evidence-column" aria-labelledby="evidenceTitle">
+            <div class="column-head"><div><p class="panel-index">EVIDENCE</p><h3 id="evidenceTitle"><span id="evidenceCount">6</span> source-backed findings</h3></div><span id="loopModel" class="model-tag">Verified snapshot</span></div>
+            <p id="loopSummary" class="loop-summary"></p>
+            <div class="evidence-filters" role="toolbar" aria-label="Evidence filters">
+              <button type="button" data-evidence-filter="all" aria-pressed="true">All <span id="filterAllCount">6</span></button>
+              <button type="button" data-evidence-filter="commitment" aria-pressed="false">Commitments <span id="filterCommitmentCount">3</span></button>
+              <button type="button" data-evidence-filter="blocker" aria-pressed="false">Blockers <span id="filterBlockerCount">2</span></button>
+              <button type="button" data-evidence-filter="expansion" aria-pressed="false">Expansion <span id="filterExpansionCount">1</span></button>
+            </div>
+            <ul class="loop-warnings" id="loopWarnings" aria-label="Unsupported evidence warnings" hidden></ul>
+            <div class="evidence-rail" id="evidenceRail"></div>
+          </section>
+          <aside class="decision-column" aria-labelledby="decisionTitle">
+            <div class="column-head"><div><p class="panel-index">AGENT ACTION</p><h3 id="decisionTitle">Decision queue</h3></div><span class="pending-count" id="pendingCount">2 pending</span></div>
+            <article class="artifact-card">
+              <header><div><p class="panel-index">EMAIL</p><h4>Follow up with Northstar</h4></div><span class="decision-state" id="followupDecision">Awaiting review</span></header>
+              <label for="followupEditor">Editable draft</label><textarea id="followupEditor" class="artifact-editor"></textarea>
+              <label for="followupReason">Rejection reason</label><select id="followupReason"><option value="">Select only when rejecting</option><option>Missing or incorrect context</option><option>Wrong tone for the customer</option><option>Action or timing is inaccurate</option><option>Not useful enough to send</option></select>
+              <div class="button-row artifact-actions"><button type="button" id="approveFollowup">Approve + queue</button><button type="button" class="reject-button" id="rejectFollowup">Reject</button></div>
+            </article>
+            <article class="artifact-card">
+              <header><div><p class="panel-index">CRM</p><h4>Update account record</h4></div><span class="decision-state" id="crmDecision">Awaiting review</span></header>
+              <label for="crmEditor">Editable record</label><textarea id="crmEditor" class="artifact-editor"></textarea>
+              <label for="crmReason">Rejection reason</label><select id="crmReason"><option value="">Select only when rejecting</option><option>Missing or incorrect context</option><option>Wrong owner or next step</option><option>Stage suggestion is not justified</option><option>Not useful enough to write</option></select>
+              <div class="button-row artifact-actions"><button type="button" id="approveCrm">Approve + write</button><button type="button" class="reject-button" id="rejectCrm">Reject</button></div>
+            </article>
+            <section class="evaluation-panel" aria-labelledby="learningTitle">
+              <div class="column-head"><div><p class="panel-index">EVALUATION</p><h3 id="learningTitle">Agent performance</h3></div></div>
+              <div class="metric-list"><p><span>Decisions</span><strong id="metricDecisions">0</strong></p><p><span>Approval rate</span><strong id="metricApproval">0%</strong></p><p><span>Average editing</span><strong id="metricEditing">0%</strong></p><p><span>Decision time</span><strong id="metricTime">0s</strong></p><p><span>Completed actions</span><strong id="metricCompleted">0</strong></p></div>
+              <p class="loop-empty" id="ledgerEmpty">Review an action to create the first eval.</p><ol class="decision-ledger" id="decisionLedger"></ol>
+              <div class="button-row ledger-actions"><button type="button" class="secondary-button" id="exportLedger">Export evals</button><button type="button" class="secondary-button" id="clearLedger">Reset demo</button></div>
+            </section>
+            <section class="attribution-panel" id="attributionPanel" aria-labelledby="attributionTitle">
+              <p class="panel-index">ATTRIBUTION</p><h3 id="attributionTitle">Outcome waiting on action</h3><p id="attributionCopy">Complete both actions to connect this agent run to the renewal workflow.</p>
+              <p class="loop-empty" id="sandboxEmpty">Approved work appears here as a safe demo outbox and account record.</p><div class="sandbox-actions" id="sandboxActions"></div>
+            </section>
+          </aside>
         </div>
       </section>
     </section>

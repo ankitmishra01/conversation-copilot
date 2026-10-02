@@ -5,6 +5,45 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function (root) {
   "use strict";
 
+  function sourceMatch(transcript, quote) {
+    var haystack = String(transcript || "");
+    var needle = String(quote || "").trim();
+    if (!needle) return null;
+    var pattern = needle.split(/\s+/).map(function (part) {
+      return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }).join("\\s+");
+    var match = new RegExp(pattern, "i").exec(haystack);
+    if (!match) return null;
+    return { start: match.index, end: match.index + match[0].length, quote: match[0] };
+  }
+
+  function filterEvidence(analysis, filter) {
+    analysis = analysis || {};
+    var groups = [
+      ["commitment", analysis.commitments || []],
+      ["blocker", analysis.blockers || []],
+      ["expansion", analysis.expansionSignals || []]
+    ];
+    return groups.reduce(function (items, group) {
+      if (filter && filter !== "all" && filter !== group[0]) return items;
+      return items.concat(group[1].map(function (item) {
+        return Object.assign({}, item, { kind: group[0] });
+      }));
+    }, []);
+  }
+
+  function feedbackState(events) {
+    var list = Array.isArray(events) ? events : [];
+    var completed = list.filter(function (event) { return event && event.decision === "approved" && event.completed; }).length;
+    var rejected = list.filter(function (event) { return event && event.decision === "rejected"; }).length;
+    return {
+      stage: completed >= 2 && rejected === 0 ? "attribution" : list.length ? "evaluation" : "context",
+      pending: Math.max(0, 2 - list.length),
+      completed: completed,
+      rejected: rejected
+    };
+  }
+
   function artifactText(type, analysis) {
     analysis = analysis || {};
     if (type === "follow-up") {
@@ -56,6 +95,8 @@
     var currentRunId = null;
     var currentStartedAt = null;
     var demoData = null;
+    var activeFilter = "all";
+    var analyzedTranscript = "";
 
     function setStatus(message, tone) {
       status.textContent = message;
@@ -71,33 +112,56 @@
       return headers;
     }
 
-    function evidenceCard(item, kind) {
-      var article = document.createElement("article");
+    function showSource(item) {
+      var preview = el("sourcePreview");
+      if (!preview) return;
+      var match = sourceMatch(analyzedTranscript, item.sourceQuote);
+      preview.innerHTML = "";
+      if (!match) {
+        var missing = document.createElement("p");
+        missing.textContent = "This claim does not have an exact source match in the current transcript.";
+        preview.appendChild(missing);
+      } else {
+        var lead = document.createElement("p");
+        var contextStart = Math.max(0, match.start - 90);
+        var contextEnd = Math.min(analyzedTranscript.length, match.end + 90);
+        lead.appendChild(document.createTextNode((contextStart ? "…" : "") + analyzedTranscript.slice(contextStart, match.start)));
+        var mark = document.createElement("mark");
+        mark.textContent = match.quote;
+        lead.appendChild(mark);
+        lead.appendChild(document.createTextNode(analyzedTranscript.slice(match.end, contextEnd) + (contextEnd < analyzedTranscript.length ? "…" : "")));
+        preview.appendChild(lead);
+      }
+      preview.focus({ preventScroll: true });
+    }
+
+    function evidenceCard(item, index) {
+      var article = document.createElement("button");
+      article.type = "button";
       article.className = "evidence-card" + (item.verified ? " is-verified" : " is-unsupported");
+      article.setAttribute("aria-label", "Show source for " + (item.kind === "commitment" ? item.action : item.label));
+      var number = document.createElement("span");
+      number.className = "evidence-number";
+      number.textContent = String(index + 1);
       var marker = document.createElement("span");
       marker.className = "evidence-marker";
-      marker.textContent = item.verified ? "SOURCE MATCH" : "UNSUPPORTED";
+      marker.textContent = item.verified ? "Source verified" : "Unsupported";
       var title = document.createElement("h4");
-      title.textContent = kind === "commitment" ? (item.owner + " · " + item.action) : item.label;
+      title.textContent = item.kind === "commitment" ? item.action : item.label;
       var meta = document.createElement("p");
       meta.className = "evidence-meta";
-      meta.textContent = kind === "commitment" ? [item.party, item.dueDate || "No date stated"].join(" · ") : kind;
+      meta.textContent = [item.sourceSpeaker, item.sourceDate, item.sourceType].filter(Boolean).join(" · ");
       var quote = document.createElement("blockquote");
       quote.textContent = item.sourceQuote ? "“" + item.sourceQuote + "”" : "No source quote returned.";
-      article.append(marker, title, meta, quote);
+      article.append(number, title, marker, meta, quote);
+      article.addEventListener("click", function () { showSource(item); });
       return article;
     }
 
-    function renderEvidence(analysis) {
+    function renderEvidence(analysis, filter) {
       evidence.innerHTML = "";
-      var groups = [
-        ["commitment", analysis.commitments || []],
-        ["blocker", analysis.blockers || []],
-        ["expansion signal", analysis.expansionSignals || []]
-      ];
-      groups.forEach(function (group) {
-        group[1].forEach(function (item) { evidence.appendChild(evidenceCard(item, group[0])); });
-      });
+      var items = filterEvidence(analysis, filter || "all");
+      items.forEach(function (item, index) { evidence.appendChild(evidenceCard(item, index)); });
       if (!evidence.children.length) {
         var empty = document.createElement("p");
         empty.className = "loop-empty";
@@ -116,23 +180,80 @@
       });
     }
 
-    function renderAnalysis(analysis, label) {
+    function updateRunLabels(analysis, runMeta) {
+      var commitments = (analysis.commitments || []).length;
+      var blockers = (analysis.blockers || []).length;
+      var expansion = (analysis.expansionSignals || []).length;
+      var total = commitments + blockers + expansion;
+      var meta = runMeta || {};
+      el("conceptFindingCount").textContent = total;
+      el("evidenceCount").textContent = total;
+      el("filterAllCount").textContent = total;
+      el("filterCommitmentCount").textContent = commitments;
+      el("filterBlockerCount").textContent = blockers;
+      el("filterExpansionCount").textContent = expansion;
+      el("conceptRunLabel").textContent = meta.verified ? "● Verified demo" : "● Current analysis";
+      el("conceptAccountLabel").textContent = meta.account ? (meta.verified ? "Fictional " : "") + meta.account : "Current customer conversation";
+      el("loopAccountEyebrow").textContent = meta.account ? "ACCOUNT / " + meta.account.toUpperCase() : "ACCOUNT / CURRENT CONVERSATION";
+      el("loopAccountName").textContent = meta.scenario || "Customer conversation review";
+      el("loopRunMeta").textContent = meta.verified ? "Verified snapshot · fictional data · browser-local decisions" : "Live analysis · browser-local decisions";
+    }
+
+    function renderAnalysis(analysis, label, runMeta) {
       currentAnalysis = analysis;
       currentRunId = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       currentStartedAt = new Date().toISOString();
+      analyzedTranscript = transcript.value;
+      section.classList.remove("has-stale-input");
       summary.textContent = analysis.summary;
       el("followupEditor").value = artifactText("follow-up", analysis);
       el("crmEditor").value = artifactText("crm", analysis);
       ["follow-up", "crm"].forEach(function (type) {
-        el(type === "follow-up" ? "followupDecision" : "crmDecision").textContent = "Awaiting review";
+        var decisionEl = el(type === "follow-up" ? "followupDecision" : "crmDecision");
+        decisionEl.textContent = "Awaiting review";
+        delete decisionEl.dataset.tone;
         el(type === "follow-up" ? "followupReason" : "crmReason").value = "";
       });
       model.textContent = label || analysis.model || "Model response";
-      renderEvidence(analysis);
+      updateRunLabels(analysis, runMeta);
+      var sourcePreview = el("sourcePreview");
+      sourcePreview.innerHTML = "<p>Select a finding to reveal its exact source passage.</p>";
+      activeFilter = "all";
+      Array.prototype.slice.call(document.querySelectorAll("[data-evidence-filter]")).forEach(function (button) {
+        button.setAttribute("aria-pressed", button.dataset.evidenceFilter === "all" ? "true" : "false");
+      });
+      renderEvidence(analysis, activeFilter);
       renderWarnings(analysis.warnings);
-      results.hidden = false;
+      if (results) results.hidden = false;
       setStatus("Analysis ready for human review.", "ready");
       renderMetrics();
+      renderFeedbackProgress();
+    }
+
+    function renderFeedbackProgress() {
+      var currentEvents = ledger.list().filter(function (event) { return event.runId === currentRunId; });
+      var progress = feedbackState(currentEvents);
+      if (currentAnalysis && !currentEvents.length) progress.stage = "agent";
+      var order = ["context", "agent", "evaluation", "attribution"];
+      var currentIndex = order.indexOf(progress.stage);
+      Array.prototype.slice.call(document.querySelectorAll("#contextTrace [data-stage]")).forEach(function (step, index) {
+        step.classList.toggle("is-current", index === currentIndex);
+        step.classList.toggle("is-complete", index < currentIndex || progress.stage === "attribution");
+      });
+      var pending = el("pendingCount");
+      if (pending) pending.textContent = progress.pending ? progress.pending + " pending" : "Review complete";
+      var conceptPending = el("conceptPendingCount");
+      if (conceptPending) conceptPending.textContent = progress.pending;
+      var attribution = el("attributionPanel");
+      var attributionTitle = el("attributionTitle");
+      var attributionCopy = el("attributionCopy");
+      if (attribution) attribution.classList.toggle("is-complete", progress.stage === "attribution");
+      if (attributionTitle) attributionTitle.textContent = progress.stage === "attribution" ? "Renewal workflow updated" : "Outcome waiting on action";
+      if (attributionCopy) attributionCopy.textContent = progress.stage === "attribution"
+        ? "The approved email and CRM write are now tied to this run. The next outcome can be attributed back to the decisions that produced it."
+        : progress.rejected
+          ? "A rejection is now structured evaluation data. Revise the action before attributing an outcome."
+          : "Complete both actions to connect this agent run to the renewal workflow.";
     }
 
     function renderMetrics() {
@@ -154,6 +275,7 @@
       });
       el("ledgerEmpty").hidden = events.length > 0;
       renderSandbox(events);
+      renderFeedbackProgress();
     }
 
     function renderSandbox(events) {
@@ -199,20 +321,26 @@
         completed: decision === "approved"
       });
       ledger.add(event);
-      el(prefix + "Decision").textContent = decision === "approved" ? (event.edited ? "Approved with edits" : "Approved unchanged") : "Rejected · learning captured";
+      var decisionEl = el(prefix + "Decision");
+      decisionEl.textContent = decision === "approved" ? (event.edited ? "Approved with edits" : "Approved unchanged") : "Rejected · learning captured";
+      decisionEl.dataset.tone = decision === "approved" ? "complete" : "rejected";
       setStatus(decision === "approved" ? "Action completed in the demo sandbox." : "Rejection captured for the learning loop.", decision === "approved" ? "complete" : "ready");
       renderMetrics();
     }
 
-    function loadDemo() {
+    function loadDemo(shouldScroll) {
       return fetch("/data/commitment-loop-demo.json", { cache: "no-store" }).then(function (response) {
         if (!response.ok) throw new Error("demo_unavailable");
         return response.json();
       }).then(function (data) {
         demoData = data;
         transcript.value = data.transcript;
-        renderAnalysis(prepareDemoAnalysis(data.analysis), "Verified demo snapshot · " + data.account);
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        renderAnalysis(prepareDemoAnalysis(data.analysis), "Verified demo snapshot · " + data.account, {
+          verified: true,
+          account: data.account,
+          scenario: data.scenario
+        });
+        if (shouldScroll !== false) section.scrollIntoView({ behavior: "smooth", block: "start" });
       }).catch(function () {
         setStatus("The bundled demo could not be loaded.", "error");
       });
@@ -235,10 +363,14 @@
         return response.json().then(function (body) { return { ok: response.ok, body: body }; });
       }).then(function (result) {
         if (!result.ok) throw new Error(result.body.error || "analysis_failed");
-        renderAnalysis(result.body, result.body.model);
+        renderAnalysis(result.body, result.body.model, { verified: false });
       }).catch(function (error) {
         if (demoData && text === demoData.transcript) {
-          renderAnalysis(prepareDemoAnalysis(demoData.analysis), "Verified demo snapshot · live model unavailable");
+          renderAnalysis(prepareDemoAnalysis(demoData.analysis), "Verified demo snapshot · live model unavailable", {
+            verified: true,
+            account: demoData.account,
+            scenario: demoData.scenario
+          });
           setStatus("Live analysis was unavailable; showing the verified bundled snapshot.", "ready");
           return;
         }
@@ -250,8 +382,25 @@
       transcript.value = (document.getElementById("transcript") || {}).value || "";
       setStatus(transcript.value.trim() ? "Live transcript copied. Ready to analyze." : "The live transcript is empty.", transcript.value.trim() ? "ready" : "error");
     });
-    el("loadLoopDemo").addEventListener("click", loadDemo);
+    transcript.addEventListener("input", function () {
+      if (!currentAnalysis || transcript.value === analyzedTranscript) return;
+      section.classList.add("has-stale-input");
+      model.textContent = "Previous run";
+      setStatus("Transcript changed. Evidence below is from the previous run; analyze again to refresh it.", "working");
+      var sourcePreview = el("sourcePreview");
+      sourcePreview.innerHTML = "<p>Transcript changed. Run analysis before tracing evidence to this input.</p>";
+    });
+    el("loadLoopDemo").addEventListener("click", function () { loadDemo(true); });
     el("analyzeLoop").addEventListener("click", analyze);
+    Array.prototype.slice.call(document.querySelectorAll("[data-evidence-filter]")).forEach(function (button) {
+      button.addEventListener("click", function () {
+        activeFilter = button.dataset.evidenceFilter;
+        Array.prototype.slice.call(document.querySelectorAll("[data-evidence-filter]")).forEach(function (candidate) {
+          candidate.setAttribute("aria-pressed", candidate === button ? "true" : "false");
+        });
+        if (currentAnalysis) renderEvidence(currentAnalysis, activeFilter);
+      });
+    });
     el("approveFollowup").addEventListener("click", function () { decide("follow-up", "approved"); });
     el("rejectFollowup").addEventListener("click", function () { decide("follow-up", "rejected"); });
     el("approveCrm").addEventListener("click", function () { decide("crm", "approved"); });
@@ -269,11 +418,18 @@
     el("clearLedger").addEventListener("click", function () {
       ledger.clear();
       renderMetrics();
-      setStatus("Local evaluation ledger cleared.", "idle");
+      loadDemo(false);
+      setStatus("Verified demo reset. Local evaluation ledger cleared.", "idle");
     });
 
     renderMetrics();
-    if (new URLSearchParams(root.location.search || "").get("demo") === "commitment-loop") loadDemo();
+    var launchParams = new URLSearchParams(root.location.search || "");
+    if (launchParams.get("demo") === "commitment-loop" || launchParams.get("view") === "loop") {
+      loadDemo(false);
+    }
+    root.addEventListener("productviewchange", function (event) {
+      if (event.detail && event.detail.view === "loop" && !currentAnalysis) loadDemo(false);
+    });
   }
 
   if (typeof document !== "undefined") {
@@ -282,6 +438,9 @@
   }
 
   return {
+    sourceMatch: sourceMatch,
+    filterEvidence: filterEvidence,
+    feedbackState: feedbackState,
     artifactText: artifactText,
     sandboxRecord: sandboxRecord,
     prepareDemoAnalysis: prepareDemoAnalysis,

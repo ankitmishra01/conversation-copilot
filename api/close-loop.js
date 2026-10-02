@@ -39,6 +39,9 @@ function normalizeEvidenceList(items, transcript, kind, warnings, limit) {
     const sourceQuote = clean(item && item.sourceQuote, 800);
     const verified = verifyQuote(transcript, sourceQuote);
     const id = clean(item && item.id, 80) || `${kind}-${index + 1}`;
+    const sourceSpeaker = clean(item && item.sourceSpeaker, 120) || (kind === "commitment" ? clean(item && item.owner, 120) : "") || "Speaker not stated";
+    const sourceDate = clean(item && item.sourceDate, 120) || "Date not stated";
+    const sourceType = clean(item && item.sourceType, 120) || "Call transcript";
     if (!verified) warnings.push(`${id}: source quote was not found in the transcript.`);
     if (kind === "commitment") {
       const party = ["seller", "customer", "shared"].includes(item && item.party) ? item.party : "shared";
@@ -49,6 +52,9 @@ function normalizeEvidenceList(items, transcript, kind, warnings, limit) {
         action: clean(item && item.action, 500),
         dueDate: clean(item && item.dueDate, 120) || null,
         confidence: boundedConfidence(item && item.confidence),
+        sourceSpeaker,
+        sourceDate,
+        sourceType,
         sourceQuote,
         verified
       };
@@ -56,6 +62,9 @@ function normalizeEvidenceList(items, transcript, kind, warnings, limit) {
     return {
       id,
       label: clean(item && item.label, 300),
+      sourceSpeaker,
+      sourceDate,
+      sourceType,
       sourceQuote,
       verified
     };
@@ -105,9 +114,9 @@ function promptFor(scenario) {
     "Schema:",
     JSON.stringify({
       summary: "string",
-      commitments: [{ id: "c1", party: "seller|customer|shared", owner: "string", action: "string", dueDate: "string|null", confidence: 0.0, sourceQuote: "exact quote" }],
-      blockers: [{ id: "b1", label: "string", sourceQuote: "exact quote" }],
-      expansionSignals: [{ id: "e1", label: "string", sourceQuote: "exact quote" }],
+      commitments: [{ id: "c1", party: "seller|customer|shared", owner: "string", action: "string", dueDate: "string|null", confidence: 0.0, sourceSpeaker: "speaker or Speaker not stated", sourceDate: "date or Date not stated", sourceType: "call transcript", sourceQuote: "exact quote" }],
+      blockers: [{ id: "b1", label: "string", sourceSpeaker: "speaker or Speaker not stated", sourceDate: "date or Date not stated", sourceType: "call transcript", sourceQuote: "exact quote" }],
+      expansionSignals: [{ id: "e1", label: "string", sourceSpeaker: "speaker or Speaker not stated", sourceDate: "date or Date not stated", sourceType: "call transcript", sourceQuote: "exact quote" }],
       followUp: { subject: "string", body: "string" },
       crm: { summary: "string", nextStep: "string", nextStepDate: "string|null", stageSuggestion: "string|null" }
     }),
@@ -155,8 +164,7 @@ async function handler(req, res) {
           { role: "user", content: `<transcript>\n${rawTranscript.trim()}\n</transcript>` }
         ],
         temperature: 0.1,
-        max_tokens: 1800,
-        response_format: { type: "json_object" }
+        max_tokens: 1800
       })
     });
     if (!upstream.ok) return send(res, 502, { error: "gateway_http_error", status: upstream.status });

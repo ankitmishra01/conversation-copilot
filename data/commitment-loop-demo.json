@@ -12,6 +12,9 @@
         "action": "Send the updated data-retention packet",
         "dueDate": "Friday, October 9",
         "confidence": 0.98,
+        "sourceSpeaker": "Ava, Account Executive",
+        "sourceDate": "October 2, 2026",
+        "sourceType": "Customer call",
         "sourceQuote": "I will send the updated data-retention packet by Friday, October 9."
       },
       {
@@ -21,6 +24,9 @@
         "action": "Introduce Ava to Dana in procurement",
         "dueDate": "Monday",
         "confidence": 0.96,
+        "sourceSpeaker": "Marcus, VP Operations",
+        "sourceDate": "October 2, 2026",
+        "sourceType": "Customer call",
         "sourceQuote": "I will introduce you to Dana in procurement on Monday so you can confirm the paperwork."
       },
       {
@@ -30,6 +36,9 @@
         "action": "Schedule administrator training",
         "dueDate": "Before October 20",
         "confidence": 0.97,
+        "sourceSpeaker": "Nina, Customer Success",
+        "sourceDate": "October 2, 2026",
+        "sourceType": "Customer call",
         "sourceQuote": "I will schedule the administrator training before October 20."
       }
     ],
@@ -37,11 +46,17 @@
       {
         "id": "b1",
         "label": "Security requires the updated data-retention packet before renewal clearance",
+        "sourceSpeaker": "Marcus, VP Operations",
+        "sourceDate": "October 2, 2026",
+        "sourceType": "Customer call",
         "sourceQuote": "The immediate blocker is still the security packet."
       },
       {
         "id": "b2",
         "label": "Analytics pricing must fit the existing operations budget",
+        "sourceSpeaker": "Marcus, VP Operations",
+        "sourceDate": "October 2, 2026",
+        "sourceType": "Customer call",
         "sourceQuote": "The pricing has to fit inside the existing operations budget."
       }
     ],
@@ -49,6 +64,9 @@
       {
         "id": "e1",
         "label": "Qualified interest in the analytics add-on next quarter if SSO remains stable",
+        "sourceSpeaker": "Marcus, VP Operations",
+        "sourceDate": "October 2, 2026",
+        "sourceType": "Customer call",
         "sourceQuote": "If the SSO rollout stays stable, I want to revisit the analytics add-on for our support team next quarter."
       }
     ],
