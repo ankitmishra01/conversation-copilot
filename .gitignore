@@ -5,6 +5,7 @@ node_modules
 .env*.local
 .vercel
 .gstack
+.worktrees/
 api/_data/
 transcripts/
 data/profile.json
