@@ -9,4 +9,5 @@ Promise.resolve()
   .then(() => require("./profile-endpoint.test").run())
   .then(() => require("./close-loop.test").run())
   .then(() => require("./eval-ledger.test").run())
+  .then(() => require("./close-loop-ui.test").run())
   .catch((e) => { console.error(e); process.exit(1); });
