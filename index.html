@@ -53,7 +53,7 @@
         </div>
         <div class="panel transcript-panel">
           <div class="panel-head"><h2 id="transcriptTitle">Live transcript</h2><span class="utility-label">Source stream</span></div>
-          <textarea id="transcript" placeholder="Live transcript appears here. You can also paste text manually."></textarea>
+          <textarea id="transcript" aria-labelledby="transcriptTitle" placeholder="Live transcript appears here. You can also paste text manually."></textarea>
         </div>
         <div class="panel translation-panel">
           <div class="panel-head"><h2 id="translationTitle">Notes</h2><button id="translate">Translate now</button></div>
@@ -83,7 +83,7 @@
         </div>
         <div class="panel practice-panel">
           <h2 id="answerTitle">Your practice answer</h2>
-          <textarea id="answer" placeholder="Draft your answer here, then score it."></textarea>
+          <textarea id="answer" aria-labelledby="answerTitle" placeholder="Draft your answer here, then score it."></textarea>
           <div class="button-row"><button id="score">Score answer</button><button id="copy" class="secondary-button">Copy phrase</button></div>
           <p id="scoreText" aria-live="polite">Score will appear here.</p><ul id="feedback"></ul>
         </div>
@@ -104,7 +104,7 @@
           <p class="concept-support">Turn customer conversations into source-backed actions, human decisions, evaluations, and revenue outcomes the next agent can learn from.</p>
           <div class="concept-actions"><a class="concept-cta" href="#closeLoop">Review the verified workflow</a><a class="concept-secondary" href="https://github.com/ankitmishra01/conversation-copilot" target="_blank" rel="noreferrer">Inspect the build</a></div>
         </div>
-        <div class="concept-status" aria-label="Verified demo status"><span><i></i> Verified demo</span><strong>6</strong> source-backed findings<strong>2</strong> decisions pending<small>Fictional Northstar renewal call</small></div>
+        <div class="concept-status" aria-label="Current workflow status"><span id="conceptRunLabel"><i></i> Verified demo</span><strong id="conceptFindingCount">6</strong> source-backed findings<strong id="conceptPendingCount">2</strong> decisions pending<small id="conceptAccountLabel">Fictional Northstar renewal call</small></div>
         <ol class="context-trace" id="contextTrace" aria-label="Context to attribution feedback loop">
           <li data-stage="context" class="is-current"><span>01</span><strong>Context</strong><small>Every fact carries its source</small></li>
           <li data-stage="agent"><span>02</span><strong>Agent action</strong><small>Draft work from account reality</small></li>
@@ -115,7 +115,7 @@
 
       <section class="loop-shell" id="closeLoop" aria-labelledby="loopTitle">
         <header class="loop-workspace-head">
-          <div><p class="panel-index">ACCOUNT / NORTHSTAR ANALYTICS</p><h2 id="loopTitle">Renewal and expansion call</h2><p>Verified snapshot · fictional data · browser-local decisions</p></div>
+          <div><p class="panel-index" id="loopAccountEyebrow">ACCOUNT / NORTHSTAR ANALYTICS</p><h2 id="loopAccountName">Renewal and expansion call</h2><p id="loopRunMeta">Verified snapshot · fictional data · browser-local decisions</p></div>
           <div class="loop-head-actions"><span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span><button type="button" class="secondary-button" id="loadLoopDemo">Replay verified demo</button><button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button></div>
         </header>
         <div class="loop-workspace">
@@ -127,13 +127,13 @@
             <p class="privacy-note"><strong>Privacy:</strong> live text is sent only when you select Run live analysis. Demo decisions stay in this browser unless exported.</p>
           </aside>
           <section class="evidence-column" aria-labelledby="evidenceTitle">
-            <div class="column-head"><div><p class="panel-index">EVIDENCE</p><h3 id="evidenceTitle">6 source-backed findings</h3></div><span id="loopModel" class="model-tag">Verified snapshot</span></div>
+            <div class="column-head"><div><p class="panel-index">EVIDENCE</p><h3 id="evidenceTitle"><span id="evidenceCount">6</span> source-backed findings</h3></div><span id="loopModel" class="model-tag">Verified snapshot</span></div>
             <p id="loopSummary" class="loop-summary"></p>
             <div class="evidence-filters" role="toolbar" aria-label="Evidence filters">
-              <button type="button" data-evidence-filter="all" aria-pressed="true">All <span>6</span></button>
-              <button type="button" data-evidence-filter="commitment" aria-pressed="false">Commitments <span>3</span></button>
-              <button type="button" data-evidence-filter="blocker" aria-pressed="false">Blockers <span>2</span></button>
-              <button type="button" data-evidence-filter="expansion" aria-pressed="false">Expansion <span>1</span></button>
+              <button type="button" data-evidence-filter="all" aria-pressed="true">All <span id="filterAllCount">6</span></button>
+              <button type="button" data-evidence-filter="commitment" aria-pressed="false">Commitments <span id="filterCommitmentCount">3</span></button>
+              <button type="button" data-evidence-filter="blocker" aria-pressed="false">Blockers <span id="filterBlockerCount">2</span></button>
+              <button type="button" data-evidence-filter="expansion" aria-pressed="false">Expansion <span id="filterExpansionCount">1</span></button>
             </div>
             <ul class="loop-warnings" id="loopWarnings" aria-label="Unsupported evidence warnings" hidden></ul>
             <div class="evidence-rail" id="evidenceRail"></div>

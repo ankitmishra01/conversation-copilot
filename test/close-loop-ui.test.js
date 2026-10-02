@@ -31,6 +31,10 @@ function run() {
   assert.ok(source && source.start >= 0, "a finding must resolve to its exact transcript source");
   assert.strictEqual(source.quote, normalized.commitments[0].sourceQuote);
   assert.strictEqual(ui.sourceMatch(demo.transcript, "invented quote"), null, "unsupported evidence must never receive a source location");
+  const wrappedTranscript = "Maya: I will send the security\npacket by Friday.";
+  const wrappedSource = ui.sourceMatch(wrappedTranscript, "I WILL SEND THE SECURITY PACKET BY FRIDAY.");
+  assert.ok(wrappedSource, "source selection must use the same whitespace-insensitive, case-insensitive contract as verification");
+  assert.strictEqual(wrappedSource.quote, "I will send the security\npacket by Friday.");
 
   assert.strictEqual(ui.filterEvidence(normalized, "all").length, 6);
   assert.strictEqual(ui.filterEvidence(normalized, "commitment").length, 3);
@@ -55,6 +59,9 @@ function run() {
   assert.ok(html.includes("Context") && html.includes("Agent action") && html.includes("Evaluation") && html.includes("Attribution"), "the interface must expose the complete feedback loop");
   assert.ok(html.includes("Replay verified demo"), "the verified workflow must be replayable");
   assert.ok(html.includes("Evidence filters"), "evidence must be filterable without another model call");
+  assert.ok(html.includes('id="conceptFindingCount"') && html.includes('id="conceptPendingCount"'), "hero counts must be live state, not static copy");
+  assert.ok(html.includes('id="loopAccountName"') && html.includes('id="filterAllCount"'), "account and filter labels must update for live runs");
+  assert.ok(html.includes('aria-labelledby="transcriptTitle"') && html.includes('aria-labelledby="answerTitle"'), "live and practice textareas must have programmatic labels");
 
   const css = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
   assert.ok(css.includes("--ghost-ink: #10172a"), "the theme must use Ghost's measured ink color");
@@ -62,6 +69,11 @@ function run() {
   assert.ok(css.includes("--ghost-paper: #f6f7f1"), "the theme must use Ghost's measured paper color");
   assert.ok(css.includes("PP Neue Montreal"), "the interface must use Ghost's public display typography");
   assert.ok(css.includes("min-height: 44px"), "interactive controls must meet the mobile touch target minimum");
+  assert.ok(css.includes("--violet-action: #6238d1"), "normal-sized interactive text needs a darker accessible violet while preserving the brand accent");
+
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.ok(app.includes("var safePayload = payload || {}"), "local fallback rendering must not dereference a null payload");
+  assert.ok(app.includes('querySelector("[data-view-panel=coach]")'), "overlay and mini-window modes must expose the answer surface");
 
   const design = fs.readFileSync(path.join(__dirname, "..", "DESIGN.md"), "utf8");
   assert.ok(design.includes("#10172A") && design.includes("#F6F7F1") && design.includes("#8059FF"), "DESIGN.md must lock the measured Ghost palette");
@@ -70,6 +82,7 @@ function run() {
 
   const script = fs.readFileSync(path.join(__dirname, "..", "close-loop.js"), "utf8");
   assert.ok(script.includes("loadDemo(false)"), "automatic demo loading must preserve the branded hero position");
+  assert.ok(script.includes("analyzedTranscript"), "source highlighting must retain the analyzed source snapshot");
 
   console.log("close-loop-ui.test.js OK");
 }

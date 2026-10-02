@@ -8,6 +8,11 @@
   function runMirror() {
     function el(id) { return document.getElementById(id); }
     document.body.classList.add("overlay-mode", "compact", "pip", "mirror");
+    var coachView = document.querySelector("[data-view-panel=coach]");
+    if (coachView) {
+      coachView.hidden = false;
+      coachView.setAttribute("aria-hidden", "false");
+    }
     document.title = "Interview copilot";
     el("status").textContent = "Waiting for the copilot tab...";
     if (!channel) {
@@ -322,19 +327,20 @@
   }
 
   function renderSayExtras(payload) {
-    var ai = payload && payload.mode === "ai-gateway";
+    var safePayload = payload || {};
+    var ai = safePayload.mode === "ai-gateway";
     var pair = languagePairFor(activeScenario());
     if (ai) {
-      phraseLabel.textContent = "Say this (" + (payload.phraseLang || pair.source).toUpperCase() + ")";
+      phraseLabel.textContent = "Say this (" + (safePayload.phraseLang || pair.source).toUpperCase() + ")";
     }
     if (phraseGlossEl) {
-      var otherLang = payload.phraseLang === pair.target ? pair.source : pair.target;
-      var other = ai && payload.phraseOther ? "In " + otherLang.toUpperCase() + ": " + payload.phraseOther : "";
+      var otherLang = safePayload.phraseLang === pair.target ? pair.source : pair.target;
+      var other = ai && safePayload.phraseOther ? "In " + otherLang.toUpperCase() + ": " + safePayload.phraseOther : "";
       phraseGlossEl.textContent = other;
       phraseGlossEl.hidden = !other;
     }
     if (phraseWatchEl) {
-      var watch = ai && payload.watch ? "Careful: " + payload.watch : "";
+      var watch = ai && safePayload.watch ? "Careful: " + safePayload.watch : "";
       phraseWatchEl.textContent = watch;
       phraseWatchEl.hidden = !watch;
     }
@@ -822,6 +828,11 @@
   overlayBtn.addEventListener("click", function () {
     document.body.classList.toggle("overlay-mode");
     document.body.classList.add("compact");
+    var coachView = document.querySelector("[data-view-panel=coach]");
+    if (coachView) {
+      coachView.hidden = !document.body.classList.contains("overlay-mode") && document.body.dataset.activeView !== "coach";
+      coachView.setAttribute("aria-hidden", coachView.hidden ? "true" : "false");
+    }
     compactBtn.textContent = "Full";
     overlayBtn.textContent = document.body.classList.contains("overlay-mode") ? "Exit overlay" : "Corner overlay";
   });

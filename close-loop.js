@@ -9,9 +9,12 @@
     var haystack = String(transcript || "");
     var needle = String(quote || "").trim();
     if (!needle) return null;
-    var start = haystack.indexOf(needle);
-    if (start === -1) return null;
-    return { start: start, end: start + needle.length, quote: haystack.slice(start, start + needle.length) };
+    var pattern = needle.split(/\s+/).map(function (part) {
+      return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }).join("\\s+");
+    var match = new RegExp(pattern, "i").exec(haystack);
+    if (!match) return null;
+    return { start: match.index, end: match.index + match[0].length, quote: match[0] };
   }
 
   function filterEvidence(analysis, filter) {
@@ -93,6 +96,7 @@
     var currentStartedAt = null;
     var demoData = null;
     var activeFilter = "all";
+    var analyzedTranscript = "";
 
     function setStatus(message, tone) {
       status.textContent = message;
@@ -111,7 +115,7 @@
     function showSource(item) {
       var preview = el("sourcePreview");
       if (!preview) return;
-      var match = sourceMatch(transcript.value, item.sourceQuote);
+      var match = sourceMatch(analyzedTranscript, item.sourceQuote);
       preview.innerHTML = "";
       if (!match) {
         var missing = document.createElement("p");
@@ -120,12 +124,12 @@
       } else {
         var lead = document.createElement("p");
         var contextStart = Math.max(0, match.start - 90);
-        var contextEnd = Math.min(transcript.value.length, match.end + 90);
-        lead.appendChild(document.createTextNode((contextStart ? "…" : "") + transcript.value.slice(contextStart, match.start)));
+        var contextEnd = Math.min(analyzedTranscript.length, match.end + 90);
+        lead.appendChild(document.createTextNode((contextStart ? "…" : "") + analyzedTranscript.slice(contextStart, match.start)));
         var mark = document.createElement("mark");
         mark.textContent = match.quote;
         lead.appendChild(mark);
-        lead.appendChild(document.createTextNode(transcript.value.slice(match.end, contextEnd) + (contextEnd < transcript.value.length ? "…" : "")));
+        lead.appendChild(document.createTextNode(analyzedTranscript.slice(match.end, contextEnd) + (contextEnd < analyzedTranscript.length ? "…" : "")));
         preview.appendChild(lead);
       }
       preview.focus({ preventScroll: true });
@@ -176,10 +180,31 @@
       });
     }
 
-    function renderAnalysis(analysis, label) {
+    function updateRunLabels(analysis, runMeta) {
+      var commitments = (analysis.commitments || []).length;
+      var blockers = (analysis.blockers || []).length;
+      var expansion = (analysis.expansionSignals || []).length;
+      var total = commitments + blockers + expansion;
+      var meta = runMeta || {};
+      el("conceptFindingCount").textContent = total;
+      el("evidenceCount").textContent = total;
+      el("filterAllCount").textContent = total;
+      el("filterCommitmentCount").textContent = commitments;
+      el("filterBlockerCount").textContent = blockers;
+      el("filterExpansionCount").textContent = expansion;
+      el("conceptRunLabel").textContent = meta.verified ? "● Verified demo" : "● Current analysis";
+      el("conceptAccountLabel").textContent = meta.account ? (meta.verified ? "Fictional " : "") + meta.account : "Current customer conversation";
+      el("loopAccountEyebrow").textContent = meta.account ? "ACCOUNT / " + meta.account.toUpperCase() : "ACCOUNT / CURRENT CONVERSATION";
+      el("loopAccountName").textContent = meta.scenario || "Customer conversation review";
+      el("loopRunMeta").textContent = meta.verified ? "Verified snapshot · fictional data · browser-local decisions" : "Live analysis · browser-local decisions";
+    }
+
+    function renderAnalysis(analysis, label, runMeta) {
       currentAnalysis = analysis;
       currentRunId = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       currentStartedAt = new Date().toISOString();
+      analyzedTranscript = transcript.value;
+      section.classList.remove("has-stale-input");
       summary.textContent = analysis.summary;
       el("followupEditor").value = artifactText("follow-up", analysis);
       el("crmEditor").value = artifactText("crm", analysis);
@@ -190,6 +215,9 @@
         el(type === "follow-up" ? "followupReason" : "crmReason").value = "";
       });
       model.textContent = label || analysis.model || "Model response";
+      updateRunLabels(analysis, runMeta);
+      var sourcePreview = el("sourcePreview");
+      sourcePreview.innerHTML = "<p>Select a finding to reveal its exact source passage.</p>";
       activeFilter = "all";
       Array.prototype.slice.call(document.querySelectorAll("[data-evidence-filter]")).forEach(function (button) {
         button.setAttribute("aria-pressed", button.dataset.evidenceFilter === "all" ? "true" : "false");
@@ -214,6 +242,8 @@
       });
       var pending = el("pendingCount");
       if (pending) pending.textContent = progress.pending ? progress.pending + " pending" : "Review complete";
+      var conceptPending = el("conceptPendingCount");
+      if (conceptPending) conceptPending.textContent = progress.pending;
       var attribution = el("attributionPanel");
       var attributionTitle = el("attributionTitle");
       var attributionCopy = el("attributionCopy");
@@ -305,7 +335,11 @@
       }).then(function (data) {
         demoData = data;
         transcript.value = data.transcript;
-        renderAnalysis(prepareDemoAnalysis(data.analysis), "Verified demo snapshot · " + data.account);
+        renderAnalysis(prepareDemoAnalysis(data.analysis), "Verified demo snapshot · " + data.account, {
+          verified: true,
+          account: data.account,
+          scenario: data.scenario
+        });
         if (shouldScroll !== false) section.scrollIntoView({ behavior: "smooth", block: "start" });
       }).catch(function () {
         setStatus("The bundled demo could not be loaded.", "error");
@@ -329,10 +363,14 @@
         return response.json().then(function (body) { return { ok: response.ok, body: body }; });
       }).then(function (result) {
         if (!result.ok) throw new Error(result.body.error || "analysis_failed");
-        renderAnalysis(result.body, result.body.model);
+        renderAnalysis(result.body, result.body.model, { verified: false });
       }).catch(function (error) {
         if (demoData && text === demoData.transcript) {
-          renderAnalysis(prepareDemoAnalysis(demoData.analysis), "Verified demo snapshot · live model unavailable");
+          renderAnalysis(prepareDemoAnalysis(demoData.analysis), "Verified demo snapshot · live model unavailable", {
+            verified: true,
+            account: demoData.account,
+            scenario: demoData.scenario
+          });
           setStatus("Live analysis was unavailable; showing the verified bundled snapshot.", "ready");
           return;
         }
@@ -343,6 +381,14 @@
     el("useLiveTranscript").addEventListener("click", function () {
       transcript.value = (document.getElementById("transcript") || {}).value || "";
       setStatus(transcript.value.trim() ? "Live transcript copied. Ready to analyze." : "The live transcript is empty.", transcript.value.trim() ? "ready" : "error");
+    });
+    transcript.addEventListener("input", function () {
+      if (!currentAnalysis || transcript.value === analyzedTranscript) return;
+      section.classList.add("has-stale-input");
+      model.textContent = "Previous run";
+      setStatus("Transcript changed. Evidence below is from the previous run; analyze again to refresh it.", "working");
+      var sourcePreview = el("sourcePreview");
+      sourcePreview.innerHTML = "<p>Transcript changed. Run analysis before tracing evidence to this input.</p>";
     });
     el("loadLoopDemo").addEventListener("click", function () { loadDemo(true); });
     el("analyzeLoop").addEventListener("click", analyze);

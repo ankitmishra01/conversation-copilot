@@ -39,7 +39,7 @@ function normalizeEvidenceList(items, transcript, kind, warnings, limit) {
     const sourceQuote = clean(item && item.sourceQuote, 800);
     const verified = verifyQuote(transcript, sourceQuote);
     const id = clean(item && item.id, 80) || `${kind}-${index + 1}`;
-    const sourceSpeaker = clean(item && item.sourceSpeaker, 120) || (kind === "commitment" ? clean(item && item.owner, 120) : "Speaker not stated");
+    const sourceSpeaker = clean(item && item.sourceSpeaker, 120) || (kind === "commitment" ? clean(item && item.owner, 120) : "") || "Speaker not stated";
     const sourceDate = clean(item && item.sourceDate, 120) || "Date not stated";
     const sourceType = clean(item && item.sourceType, 120) || "Call transcript";
     if (!verified) warnings.push(`${id}: source quote was not found in the transcript.`);
