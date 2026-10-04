@@ -25,8 +25,14 @@ Treat these as the only authoritative sources. Do not invent Ghost metrics, cust
 3. **Working product:** https://conversation-copilot-three.vercel.app/?view=loop&demo=commitment-loop
 4. **Eval Control Tower:** https://conversation-copilot-three.vercel.app/?view=evals
 5. **Implementation details and limitations:** https://github.com/ankitmishra01/conversation-copilot
+6. **Presentation asset kit and brand reference:** https://github.com/ankitmishra01/conversation-copilot/blob/feat/ghost-branded-pages/docs/ASSET_GUIDE.md
+7. **Direct workflow screenshot:** https://raw.githubusercontent.com/ankitmishra01/conversation-copilot/feat/ghost-branded-pages/docs/assets/close-the-loop-workflow.png
+8. **Direct Control Tower screenshot:** https://raw.githubusercontent.com/ankitmishra01/conversation-copilot/feat/ghost-branded-pages/docs/assets/eval-control-tower.png
+9. **Direct Ghost wordmark asset:** https://raw.githubusercontent.com/ankitmishra01/conversation-copilot/feat/ghost-branded-pages/docs/assets/ghost-wordmark-paper.png
 
 If a source cannot be opened, do not fill the gap with guesses. Add a small production note such as `[Insert verified product screenshot]` and continue. Use citations in speaker notes or in a discreet final sources slide, not as clutter across the main narrative.
+
+Pull the supplied screenshots and wordmark from the direct GitHub asset links rather than recreating them. Use the repository's `README.md`, `DESIGN.md`, schema migrations, and API files to resolve technical details when needed. The asset guide contains the exact presentation palette, font fallback order, screenshot rules, and claim boundaries.
 
 ## Audience, occasion, and tone
 

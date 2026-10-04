@@ -282,6 +282,8 @@ The production deployment needs HTTPS for microphone access and a serverless run
 
 [`docs/GENSPARK_DECK_PROMPT.md`](docs/GENSPARK_DECK_PROMPT.md) contains a detailed, source-grounded prompt for generating the CEO presentation in Genspark. It specifies the narrative, slide-by-slide content, architecture diagrams, visual system, speaker notes, and accuracy guardrails.
 
+[`docs/ASSET_GUIDE.md`](docs/ASSET_GUIDE.md) provides direct GitHub links to the Ghost wordmark and high-resolution product screenshots, plus the exact palette, typography fallbacks, usage rules, and claim boundaries Genspark should follow.
+
 ## Limitations
 
 Browsers cannot silently capture all system audio. Play the other participant through speakers or use a loopback device such as BlackHole with the terminal listener. A shared microphone cannot reliably distinguish your voice from the other participant, so the interface includes **Pause my voice** and **Resume incoming** controls.
