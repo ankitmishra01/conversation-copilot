@@ -6,18 +6,21 @@ function run() {
   assert.strictEqual(views.resolveView(""), "live");
   assert.strictEqual(views.resolveView("?view=coach"), "coach");
   assert.strictEqual(views.resolveView("?view=loop"), "loop");
+  assert.strictEqual(views.resolveView("?view=evals"), "evals");
   assert.strictEqual(views.resolveView("?demo=commitment-loop"), "loop");
   assert.strictEqual(views.resolveView("?view=coach&demo=commitment-loop"), "coach", "an explicit view must override the legacy demo alias");
   assert.strictEqual(views.resolveView("?view=unknown"), "live");
 
   assert.strictEqual(views.viewHref("coach", "?mode=recording&role=interview"), "?mode=recording&role=interview&view=coach");
   assert.strictEqual(views.viewHref("loop", "?demo=commitment-loop"), "?demo=commitment-loop&view=loop");
+  assert.strictEqual(views.viewHref("evals", "?demo=commitment-loop"), "?demo=commitment-loop&view=evals");
 
   const state = views.viewState("coach");
   assert.deepStrictEqual(state, {
     live: false,
     coach: true,
     loop: false,
+    evals: false,
     title: "Answer coach"
   });
 

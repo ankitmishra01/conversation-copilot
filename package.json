@@ -4,7 +4,7 @@
   "private": true,
   "description": "A configurable conversation copilot that coaches live calls, closes post-call commitments, and turns human decisions into evaluation data.",
   "scripts": {
-    "check": "node --check view-controller.js && node --check app.js && node --check close-loop.js && node --check eval-ledger.js && node --check api/close-loop.js && node --check api/translate.js && node --check api/transcribe.js && node --check api/profile.js && node --check api/_access.js && node --check api/_memory.js && node --check api/_profile.js && node --check scripts/sync-memory.js && node --check scripts/listen.js && node --check scripts/credits.js && node --check desktop/main.cjs && node --check desktop/preload.cjs",
+    "check": "node --check view-controller.js && node --check app.js && node --check close-loop.js && node --check eval-ledger.js && node --check eval-dashboard.js && node --check api/close-loop.js && node --check api/runs.js && node --check api/evaluations.js && node --check api/eval-dashboard.js && node --check api/_eval-store.js && node --check api/_eval-analytics.js && node --check api/_supabase.js && node --check api/translate.js && node --check api/transcribe.js && node --check api/profile.js && node --check api/_access.js && node --check api/_memory.js && node --check api/_profile.js && node --check scripts/sync-memory.js && node --check scripts/listen.js && node --check scripts/credits.js && node --check desktop/main.cjs && node --check desktop/preload.cjs",
     "test": "node test/run.js",
     "desktop": "electron desktop/main.cjs",
     "sync-memory": "node scripts/sync-memory.js",
@@ -15,5 +15,8 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "latest"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
   }
 }
