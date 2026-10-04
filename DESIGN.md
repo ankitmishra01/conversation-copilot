@@ -4,7 +4,7 @@
 
 The approved Close the Loop treatment is **Direction B**: the customer evidence trace is the primary visual and interaction model. The product should feel like one fact moving from source context through an agent action, human evaluation, and eventual attribution. It must not read as a generic dashboard or a collection of disconnected cards.
 
-This is an **Independent interview concept by Ankit Mishra**. Keep that line visible beside the Ghost wordmark so the prototype demonstrates brand fluency without implying official ownership.
+This is an **Independent product concept by Ankit Mishra**. Keep that line visible beside the Ghost wordmark so the prototype demonstrates brand fluency without implying official ownership.
 
 ## Brand foundation
 
@@ -36,6 +36,9 @@ Violet indicates selection, focus, and the next primary action. Green is reserve
 - The verified presentation follows one causal-looking thread without claiming causality: source evidence → human correction → scoped rule → changed next-run output → associated fictional outcome.
 - Learned rules always name their application scope and exclusions. A customer-email preference must not silently erase useful CRM memory.
 - Presentation mode is a deterministic replay with explicit controls and labels; live model behavior is never substituted into the verified story.
+- Eval Control Tower is a fourth product mode, not an embedded generic dashboard. Metrics resolve back to a labelled run and exact source quote.
+- Live transcripts are persisted only after an explicit save action; deletion removes the full saved run. Demo and live datasets are always visibly distinguished.
+- Rule comparisons are labelled as association, not causation.
 
 ## Accessibility
 

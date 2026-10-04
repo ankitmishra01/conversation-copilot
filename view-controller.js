@@ -5,8 +5,8 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function (root) {
   "use strict";
 
-  var VALID_VIEWS = ["live", "coach", "loop"];
-  var TITLES = { live: "Live copilot", coach: "Answer coach", loop: "Close the Loop" };
+  var VALID_VIEWS = ["live", "coach", "loop", "evals"];
+  var TITLES = { live: "Live copilot", coach: "Answer coach", loop: "Close the Loop", evals: "Eval Control Tower" };
 
   function paramsFor(search) {
     return new URLSearchParams(String(search || "").replace(/^\?/, ""));
@@ -33,6 +33,7 @@
       live: active === "live",
       coach: active === "coach",
       loop: active === "loop",
+      evals: active === "evals",
       title: TITLES[active]
     };
   }
@@ -44,7 +45,7 @@
 
     function activate(view, options) {
       var state = viewState(view);
-      var active = state.live ? "live" : state.coach ? "coach" : "loop";
+      var active = state.live ? "live" : state.coach ? "coach" : state.loop ? "loop" : "evals";
       doc.body.dataset.activeView = active;
       buttons.forEach(function (button) {
         var selected = button.dataset.viewTarget === active;

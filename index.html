@@ -12,6 +12,7 @@
   <script defer src="/view-controller.js"></script>
   <script defer src="/app.js"></script>
   <script defer src="/close-loop.js"></script>
+  <script defer src="/eval-dashboard.js"></script>
 </head>
 <body data-active-view="live">
   <a class="skip-nav" href="#main">Skip to main content</a>
@@ -19,11 +20,12 @@
     <a class="ghost-brand" href="?view=loop&demo=commitment-loop" aria-label="Ghost Close the Loop concept">
       <img src="https://ghostgtm.ai/_next/image?url=%2Fimages%2Fbrand%2Fwordmark-paper.png&w=128&q=75" alt="Ghost">
     </a>
-    <p class="concept-credit">Independent interview concept by Ankit Mishra</p>
+    <p class="concept-credit">Independent product concept by Ankit Mishra</p>
     <nav class="mode-switcher" aria-label="Product modes" role="tablist">
       <a role="tab" aria-controls="view-live" data-view-target="live" href="?view=live">Live copilot</a>
       <a role="tab" aria-controls="view-coach" data-view-target="coach" href="?view=coach">Answer coach</a>
       <a role="tab" aria-controls="view-loop" data-view-target="loop" href="?view=loop&demo=commitment-loop">Close the Loop</a>
+      <a role="tab" aria-controls="view-evals" data-view-target="evals" href="?view=evals">Eval Control Tower</a>
     </nav>
   </header>
 
@@ -116,7 +118,7 @@
       <section class="loop-shell" id="closeLoop" aria-labelledby="loopTitle">
         <header class="loop-workspace-head">
           <div><p class="panel-index" id="loopAccountEyebrow">ACCOUNT / NORTHSTAR ANALYTICS</p><h2 id="loopAccountName">Renewal and expansion call</h2><p id="loopRunMeta">Verified snapshot · fictional data · browser-local decisions</p></div>
-          <div class="loop-head-actions"><span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span><button type="button" class="secondary-button" id="loadLoopDemo">Replay verified demo</button><button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button></div>
+          <div class="loop-head-actions"><span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span><button type="button" class="secondary-button" id="loadLoopDemo">Replay verified demo</button><button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button><button type="button" id="saveLoopRun" disabled>Save to Control Tower</button><button type="button" class="text-button" id="deleteLoopRun" hidden>Delete saved run</button></div>
         </header>
         <section class="presentation-guide" id="presentationGuide" aria-labelledby="presentationTitle" hidden>
           <p class="sr-only" id="presentationAnnouncement" aria-live="polite"></p>
@@ -210,6 +212,54 @@
               <p class="attribution-boundary">Association, not causation. This is fictional demo data.</p>
             </article>
           </div>
+        </section>
+      </section>
+    </section>
+
+    <section class="product-view eval-dashboard-view" id="view-evals" role="tabpanel" data-view-panel="evals" aria-labelledby="evalDashboardTitle" hidden>
+      <header class="eval-hero">
+        <div>
+          <p class="eyebrow">Evaluation intelligence / durable learning</p>
+          <h1 id="evalDashboardTitle">The decisions are the dataset.</h1>
+          <p>See where agents earn trust, where humans intervene, and whether learned guidance changes the next run.</p>
+        </div>
+        <div class="eval-hero-status"><span class="demo-data-badge">Simulated interview dataset</span><p id="evalDashboardStatus" aria-live="polite">Loading evaluation history…</p></div>
+      </header>
+
+      <section class="eval-dashboard-shell" aria-label="Evaluation analytics">
+        <div class="eval-toolbar">
+          <label>Dataset<select id="evalDatasetFilter"><option value="all">All labelled data</option><option value="demo" selected>Demo only</option><option value="live">Saved live runs</option></select></label>
+          <label>Artifact<select id="evalArtifactFilter"><option value="all">All artifacts</option><option value="follow-up">Follow-up email</option><option value="crm">CRM update</option></select></label>
+          <button type="button" class="secondary-button" id="refreshEvalDashboard">Refresh</button>
+        </div>
+
+        <div class="eval-metric-grid" aria-label="Evaluation summary">
+          <article><span>Decisions</span><strong id="evalMetricDecisions">0</strong><small>Human review events</small></article>
+          <article><span>Approval rate</span><strong id="evalMetricApproval">0%</strong><small>Latest decision per artifact</small></article>
+          <article><span>Average editing</span><strong id="evalMetricEditing">0%</strong><small>Words changed before approval</small></article>
+          <article><span>Decision time</span><strong id="evalMetricTime">0s</strong><small>From draft to judgment</small></article>
+          <article><span>Completed actions</span><strong id="evalMetricCompleted">0%</strong><small>Approved sandbox actions</small></article>
+          <article><span>Verified evidence</span><strong id="evalMetricEvidence">0%</strong><small>Claims grounded in a source quote</small></article>
+        </div>
+
+        <div class="eval-analysis-grid">
+          <section class="eval-rule-impact" aria-labelledby="evalRuleTitle">
+            <p class="panel-index">RULE IMPACT</p><h2 id="evalRuleTitle">Does feedback change the next run?</h2>
+            <p class="eval-boundary">Association only. The comparison does not claim the learned rule caused the outcome.</p>
+            <div class="eval-comparison">
+              <article><span>Without learned guidance</span><strong id="evalWithoutRuleApproval">0%</strong><small id="evalWithoutRuleEditing">0% average editing</small></article>
+              <article class="is-learned"><span>With a learned rule</span><strong id="evalWithRuleApproval">0%</strong><small id="evalWithRuleEditing">0% average editing</small></article>
+            </div>
+          </section>
+          <section class="eval-reasons" aria-labelledby="evalReasonsTitle">
+            <p class="panel-index">FRICTION</p><h2 id="evalReasonsTitle">Why work gets rejected</h2>
+            <ol id="evalRejectionReasons"><li class="eval-empty">No rejection reasons in this filter.</li></ol>
+          </section>
+        </div>
+
+        <section class="eval-run-ledger" aria-labelledby="evalRunsTitle">
+          <header><div><p class="panel-index">TRACEABLE RUNS</p><h2 id="evalRunsTitle">From metric back to source</h2></div><p>Every row stays labelled as demo or live data.</p></header>
+          <div id="evalRecentRuns"><p class="eval-empty">No saved runs match these filters.</p></div>
         </section>
       </section>
     </section>

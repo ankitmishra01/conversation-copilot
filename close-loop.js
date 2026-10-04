@@ -56,6 +56,38 @@
     };
   }
 
+  var PENDING_EVALS_KEY = "conversation-copilot:pending-evals:v1";
+
+  function readPendingEvaluations(storage) {
+    try {
+      var parsed = JSON.parse(storage.getItem(PENDING_EVALS_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.filter(function (item) {
+        return item && item.idempotencyKey && item.runId;
+      }) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function queuePendingEvaluation(storage, payload) {
+    if (!storage || !payload || !payload.idempotencyKey || !payload.runId) return [];
+    var pending = readPendingEvaluations(storage).filter(function (item) {
+      return item.idempotencyKey !== payload.idempotencyKey;
+    });
+    pending.push(payload);
+    storage.setItem(PENDING_EVALS_KEY, JSON.stringify(pending));
+    return pending;
+  }
+
+  function removePendingEvaluation(storage, idempotencyKey) {
+    if (!storage) return [];
+    var pending = readPendingEvaluations(storage).filter(function (item) {
+      return item.idempotencyKey !== idempotencyKey;
+    });
+    storage.setItem(PENDING_EVALS_KEY, JSON.stringify(pending));
+    return pending;
+  }
+
   function compareArtifact(before, after) {
     function lines(value) {
       return String(value || "").split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
@@ -173,6 +205,9 @@
     var learnedRule = null;
     var presentationActive = false;
     var isVerifiedDemoRun = false;
+    var persistedRunId = null;
+    var currentRunMeta = {};
+    var currentModelLabel = "unknown";
 
     function setStatus(message, tone) {
       status.textContent = message;
@@ -324,6 +359,113 @@
       return headers;
     }
 
+    function setPersistenceState(saved) {
+      var save = el("saveLoopRun");
+      var remove = el("deleteLoopRun");
+      save.disabled = !currentAnalysis || saved;
+      save.textContent = saved ? "Saved to Control Tower" : "Save to Control Tower";
+      remove.hidden = !saved;
+    }
+
+    function evaluationPayload(event, runId) {
+      return {
+        idempotencyKey: "evaluation:" + event.id,
+        runId: runId,
+        artifactType: event.artifactType,
+        decision: event.decision,
+        original: event.original,
+        final: event.final,
+        reason: event.reason,
+        startedAt: event.startedAt,
+        decidedAt: event.decidedAt,
+        completed: event.completed,
+        decisionSource: event.decisionSource,
+        demoVersion: event.demoVersion,
+        appliedRuleIds: event.appliedRuleIds || []
+      };
+    }
+
+    function postEvaluation(payload, shouldQueue) {
+      return fetch("/api/evaluations", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify(payload)
+      }).then(function (response) {
+        if (!response.ok) throw new Error("evaluation_sync_failed");
+        try { removePendingEvaluation(root.localStorage, payload.idempotencyKey); } catch (error) { /* storage is optional */ }
+        return true;
+      }).catch(function () {
+        if (shouldQueue !== false) {
+          try { queuePendingEvaluation(root.localStorage, payload); } catch (error) { /* storage is optional */ }
+        }
+        setStatus("Decision saved locally; Control Tower sync will need a retry.", "error");
+        return false;
+      });
+    }
+
+    function syncEvaluation(event) {
+      if (!persistedRunId || !event) return Promise.resolve(false);
+      return postEvaluation(evaluationPayload(event, persistedRunId), true);
+    }
+
+    function retryPendingEvaluations() {
+      var pending;
+      try { pending = readPendingEvaluations(root.localStorage); } catch (error) { return Promise.resolve([]); }
+      return Promise.all(pending.map(function (payload) { return postEvaluation(payload, false); }));
+    }
+
+    function saveCurrentRun() {
+      if (!currentAnalysis || !analyzedTranscript) {
+        setStatus("Run an analysis before saving it to the Control Tower.", "error");
+        return;
+      }
+      el("saveLoopRun").disabled = true;
+      setStatus("Saving the consented transcript and evaluation context…", "working");
+      fetch("/api/runs", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          idempotencyKey: "conversation:" + currentRunId,
+          account: currentRunMeta.account || "Current conversation",
+          scenario: currentRunMeta.scenario || "B2B customer call",
+          transcript: analyzedTranscript,
+          datasetKind: isVerifiedDemoRun ? "demo" : "live",
+          model: currentModelLabel,
+          generatedAt: currentAnalysis.generatedAt || new Date().toISOString(),
+          analysis: currentAnalysis
+        })
+      }).then(function (response) {
+        return response.json().then(function (body) { return { ok: response.ok, body: body }; });
+      }).then(function (result) {
+        if (!result.ok) throw new Error(result.body.error || "save_failed");
+        persistedRunId = result.body.runId;
+        setPersistenceState(true);
+        var pending = root.CommitmentEvals.eventsForRun(ledger.list(), currentRunId);
+        return Promise.all(pending.map(syncEvaluation));
+      }).then(function (syncResults) {
+        var complete = syncResults.every(function (result) { return result === true; });
+        setStatus(complete
+          ? "Run saved. Decisions are available in the Eval Control Tower."
+          : "Run saved. Some decisions are queued for an automatic retry.", complete ? "complete" : "working");
+      }).catch(function () {
+        setPersistenceState(false);
+        setStatus("The run remains local because Control Tower saving failed.", "error");
+      });
+    }
+
+    function deleteSavedRun() {
+      if (!persistedRunId) return;
+      if (typeof root.confirm === "function" && !root.confirm("Delete this saved transcript and all of its evaluation data?")) return;
+      var id = persistedRunId;
+      fetch("/api/runs?id=" + encodeURIComponent(id), { method: "DELETE", headers: apiHeaders() })
+        .then(function (response) { if (!response.ok) throw new Error("delete_failed"); })
+        .then(function () {
+          persistedRunId = null;
+          setPersistenceState(false);
+          setStatus("Saved transcript and evaluation data deleted from the Control Tower.", "complete");
+        }).catch(function () { setStatus("The saved run could not be deleted.", "error"); });
+    }
+
     function showSource(item) {
       var preview = el("sourcePreview");
       if (!preview) return;
@@ -414,7 +556,10 @@
     function renderAnalysis(analysis, label, runMeta) {
       isVerifiedDemoRun = Boolean(runMeta && runMeta.verified);
       currentAnalysis = analysis;
+      currentRunMeta = runMeta || {};
+      currentModelLabel = label || analysis.model || "unknown";
       currentRunId = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+      persistedRunId = null;
       currentStartedAt = new Date().toISOString();
       analyzedTranscript = transcript.value;
       section.classList.remove("has-stale-input");
@@ -439,6 +584,7 @@
       renderWarnings(analysis.warnings);
       if (results) results.hidden = false;
       setStatus("Analysis ready for human review.", "ready");
+      setPersistenceState(false);
       renderMetrics();
       renderFeedbackProgress();
     }
@@ -539,8 +685,10 @@
       if (type === "follow-up" && demoData && demoData.learningLoop && qualifiesForDemoRule(demoData.learningLoop.edit, original, finalText, event, isVerifiedDemoRun)) {
         learnedRule = createLearnedRule(demoData.learningLoop.rule, event);
         event.learnedRule = learnedRule;
+        event.appliedRuleIds = [learnedRule.id];
       }
       ledger.add(event);
+      if (persistedRunId) syncEvaluation(event);
       var decisionEl = el(prefix + "Decision");
       decisionEl.textContent = decision === "approved" ? (event.edited ? "Approved with edits" : "Approved unchanged") : "Rejected · learning captured";
       decisionEl.dataset.tone = decision === "approved" ? "complete" : "rejected";
@@ -615,6 +763,8 @@
     });
     el("loadLoopDemo").addEventListener("click", function () { loadDemo(true, false); });
     el("analyzeLoop").addEventListener("click", analyze);
+    el("saveLoopRun").addEventListener("click", saveCurrentRun);
+    el("deleteLoopRun").addEventListener("click", deleteSavedRun);
     Array.prototype.slice.call(document.querySelectorAll("[data-evidence-filter]")).forEach(function (button) {
       button.addEventListener("click", function () {
         activeFilter = button.dataset.evidenceFilter;
@@ -654,6 +804,7 @@
     });
 
     renderMetrics();
+    retryPendingEvaluations();
     var launchParams = new URLSearchParams(root.location.search || "");
     if (launchParams.get("demo") === "commitment-loop" || launchParams.get("view") === "loop") {
       loadDemo(false, false);
@@ -672,6 +823,9 @@
     sourceMatch: sourceMatch,
     filterEvidence: filterEvidence,
     feedbackState: feedbackState,
+    readPendingEvaluations: readPendingEvaluations,
+    queuePendingEvaluation: queuePendingEvaluation,
+    removePendingEvaluation: removePendingEvaluation,
     compareArtifact: compareArtifact,
     createLearnedRule: createLearnedRule,
     presentationStep: presentationStep,

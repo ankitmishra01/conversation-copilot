@@ -54,6 +54,19 @@ function run() {
     "repeated decisions on one artifact must not complete the workflow"
   );
 
+  const retryStorage = {
+    value: "[]",
+    getItem() { return this.value; },
+    setItem(key, value) { this.value = value; }
+  };
+  const queuedPayload = { idempotencyKey: "evaluation:one", runId: "run-one", decision: "approved" };
+  ui.queuePendingEvaluation(retryStorage, queuedPayload);
+  ui.queuePendingEvaluation(retryStorage, Object.assign({}, queuedPayload, { decision: "rejected" }));
+  assert.deepStrictEqual(ui.readPendingEvaluations(retryStorage), [Object.assign({}, queuedPayload, { decision: "rejected" })], "retry queue writes must be idempotent");
+  assert.deepStrictEqual(ui.removePendingEvaluation(retryStorage, "evaluation:one"), [], "successful retries must leave the queue clean");
+  retryStorage.value = "not-json";
+  assert.deepStrictEqual(ui.readPendingEvaluations(retryStorage), [], "corrupt browser state must not block the workflow");
+
   const comparison = ui.compareArtifact(
     "Keep the renewal moving.\nInclude analytics pricing now.",
     "Keep the renewal moving."
@@ -92,10 +105,16 @@ function run() {
   assert.ok(html.includes('data-view-target="live"'), "the shell must expose Live copilot as a real mode");
   assert.ok(html.includes('data-view-target="coach"'), "the shell must expose Answer coach as a real mode");
   assert.ok(html.includes('data-view-target="loop"'), "the shell must expose Close the Loop as a real mode");
+  assert.ok(html.includes('data-view-target="evals"'), "the shell must expose the Eval Control Tower as a real mode");
   assert.ok(html.includes('data-view-panel="live"'), "Live copilot must have its own workspace");
   assert.ok(html.includes('data-view-panel="coach"'), "Answer coach must have its own workspace");
   assert.ok(html.includes('data-view-panel="loop"'), "Close the Loop must have its own workspace");
-  assert.ok(html.includes("Independent interview concept by Ankit Mishra"), "the page must not imply official Ghost ownership");
+  assert.ok(html.includes('data-view-panel="evals"'), "the Eval Control Tower must have its own workspace");
+  assert.ok(html.includes('id="saveLoopRun"') && html.includes('id="deleteLoopRun"'), "transcript retention must require an explicit save and support deletion");
+  assert.ok(html.includes('id="evalDatasetFilter"') && html.includes('id="evalArtifactFilter"'), "the Control Tower must separate demo/live data and artifact types");
+  assert.ok(html.includes('id="evalMetricApproval"') && html.includes('id="evalRecentRuns"'), "the Control Tower must expose headline metrics and traceable recent runs");
+  assert.ok(html.includes('src="/eval-dashboard.js"'), "the Control Tower client must load independently");
+  assert.ok(html.includes("Independent product concept by Ankit Mishra"), "the page must not imply official Ghost ownership");
   assert.ok(html.includes("wordmark-paper.png"), "the shell must use Ghost's public paper wordmark asset");
   assert.ok(html.includes("Context") && html.includes("Agent action") && html.includes("Evaluation") && html.includes("Attribution"), "the interface must expose the complete feedback loop");
   assert.ok(html.includes("Replay verified demo"), "the verified workflow must be replayable");
@@ -115,6 +134,7 @@ function run() {
   assert.ok(css.includes("PP Neue Montreal"), "the interface must use Ghost's public display typography");
   assert.ok(css.includes("min-height: 44px"), "interactive controls must meet the mobile touch target minimum");
   assert.ok(css.includes("--violet-action: #6238d1"), "normal-sized interactive text needs a darker accessible violet while preserving the brand accent");
+  assert.ok(css.includes(".eval-dashboard-view") && css.includes(".eval-metric-grid"), "the Control Tower needs a responsive product surface");
 
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.ok(app.includes("var safePayload = payload || {}"), "local fallback rendering must not dereference a null payload");
@@ -123,11 +143,12 @@ function run() {
   const design = fs.readFileSync(path.join(__dirname, "..", "DESIGN.md"), "utf8");
   assert.ok(design.includes("#10172A") && design.includes("#F6F7F1") && design.includes("#8059FF"), "DESIGN.md must lock the measured Ghost palette");
   assert.ok(design.includes("Direction B"), "DESIGN.md must record the approved visual direction");
-  assert.ok(design.includes("Independent interview concept by Ankit Mishra"), "DESIGN.md must preserve the authorship boundary");
+  assert.ok(design.includes("Independent product concept by Ankit Mishra"), "DESIGN.md must preserve the authorship boundary");
 
   const script = fs.readFileSync(path.join(__dirname, "..", "close-loop.js"), "utf8");
   assert.ok(script.includes("loadDemo(false, false)"), "automatic demo loading must preserve the branded hero position and remain outside presentation mode");
   assert.ok(script.includes("analyzedTranscript"), "source highlighting must retain the analyzed source snapshot");
+  assert.ok(script.includes('fetch("/api/runs"') && script.includes('fetch("/api/evaluations"'), "saved runs and decisions must sync through protected server routes");
   assert.ok(demo.learningLoop && demo.learningLoop.rule && demo.learningLoop.nextRun && demo.learningLoop.outcome, "the verified demo must include the complete learning replay contract");
   assert.strictEqual(demo.learningLoop.rule.id, "renewal-expansion-separation");
   assert.ok(demo.learningLoop.nextRun.baselineFollowUp.body.toLowerCase().includes("analytics"), "the baseline must visibly repeat the old behavior");

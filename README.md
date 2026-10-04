@@ -2,11 +2,11 @@
 
 **A source-grounded copilot for live conversations and post-call follow-through.**
 
-[Try the verified Close the Loop demo](https://conversation-copilot-three.vercel.app/?view=loop&demo=commitment-loop) · [Open Live copilot](https://conversation-copilot-three.vercel.app/?view=live) · [Open Answer coach](https://conversation-copilot-three.vercel.app/?view=coach)
+[Try the verified Close the Loop demo](https://conversation-copilot-three.vercel.app/?view=loop&demo=commitment-loop) · [Open Eval Control Tower](https://conversation-copilot-three.vercel.app/?view=evals) · [Open Live copilot](https://conversation-copilot-three.vercel.app/?view=live) · [Open Answer coach](https://conversation-copilot-three.vercel.app/?view=coach)
 
 Conversation Copilot listens through your microphone, transcribes speech, and provides tactical coaching grounded in a configurable profile. After a call, **Close the Loop** converts the transcript into traceable commitments, an editable follow-up email, and a CRM update. Human approvals, edits, and rejections become evaluation data that can improve the next run.
 
-This repository is an independent interview concept by Ankit Mishra. The Ghost-branded interface demonstrates product and brand fluency; it is not an official Ghost product.
+This repository is an independent product concept by Ankit Mishra. The Ghost-branded interface demonstrates product and brand fluency; it is not an official Ghost product.
 
 ## What it demonstrates
 
@@ -15,8 +15,21 @@ This repository is an independent interview concept by Ankit Mishra. The Ghost-b
 | **Live copilot** | Transcribes a conversation, translates when needed, and suggests what to say next. |
 | **Answer coach** | Turns the current conversation into a concise answer, proof points, questions, and watch-outs. |
 | **Close the Loop** | Extracts source-backed actions and risks, prepares follow-up artifacts, records human decisions, and traces those decisions into a later run. |
+| **Eval Control Tower** | Persists explicitly saved runs and shows approval, editing, decision-time, evidence-quality, rejection-reason, and learned-rule analytics. |
 
-Each mode has a shareable URL: `?view=live`, `?view=coach`, or `?view=loop`.
+Each mode has a shareable URL: `?view=live`, `?view=coach`, `?view=loop`, or `?view=evals`.
+
+## Why this product
+
+The prototype responds to Ghost's AI Builder brief with a narrow end-to-end workflow: turn a customer conversation into work that is grounded, reviewed, completed, measured, and improved. It demonstrates the full loop described in the brief:
+
+```text
+Context → Agent action → Human evaluation → Learned guidance → Attribution
+```
+
+The central product bet is that the human decision is not merely a UI event. An approval, edit, rejection, or ignored draft becomes structured evaluation data tied to the account, source evidence, artifact, agent run, and eventual outcome. That gives Ghost a path from useful daily workflow to a proprietary quality and trust layer.
+
+The current build deliberately keeps CRM and email actions inside a labelled sandbox. Production integration would use Ghost's governed write layer while preserving the CRM as the revenue system of record.
 
 ## Try the verified demo
 
@@ -59,7 +72,29 @@ Microphone or transcript
         Local evaluation ledger and learned rule
 ```
 
-The browser is a plain HTML, CSS, and JavaScript client. Vercel Functions provide the profile, transcription, coaching, and close-loop APIs. Model calls go through Vercel AI Gateway. No database is required: the evaluation ledger stays in browser `localStorage` until the user explicitly exports it.
+The durable path adds a server-side data layer:
+
+```text
+Browser workflow
+  ├─ transcript + exact source quotes
+  ├─ editable follow-up and CRM artifacts
+  └─ approve / edit / reject decisions
+                 |
+                 v
+Vercel Functions: validation, idempotency, access boundary
+                 |
+                 v
+Supabase Postgres
+  ├─ conversations → agent_runs → artifacts
+  ├─ evidence_items
+  ├─ evaluation_events
+  └─ learned_rules ↔ rule_applications
+                 |
+                 v
+Eval Control Tower: quality, trust, friction, and traceability
+```
+
+The browser is a plain HTML, CSS, and JavaScript client. Vercel Functions provide the profile, transcription, coaching, close-loop, persistence, and analytics APIs. Model calls go through Vercel AI Gateway. The local evaluation ledger remains the offline-safe working copy; an explicit **Save to Control Tower** action persists the consented transcript, artifacts, source evidence, and decisions to Supabase.
 
 ## Local setup
 
@@ -158,6 +193,8 @@ The browser receives only a redacted profile from `/api/profile`. Sensitive coac
 | `AI_GATEWAY_FALLBACK_MODEL` | No | Overrides the configured fallback model. |
 | `AI_GATEWAY_STT_MODEL` | No | Overrides the speech-to-text model chain. |
 | `AI_GATEWAY_LOOP_MODEL` | No | Overrides the Close the Loop analysis model. |
+| `SUPABASE_URL` | Control Tower | Hosted Supabase project URL used only by Vercel Functions. |
+| `SUPABASE_SECRET_KEY` | Control Tower | Server-only Supabase secret; never expose it to browser code. |
 
 See [`.env.example`](.env.example) for a copy-ready configuration.
 
@@ -175,7 +212,8 @@ Set `COPILOT_URL` to a deployed URL or run `vercel dev` locally. The listener re
 
 - Extracted commitments, blockers, and expansion signals keep an exact source quote. Quotes missing from the transcript are marked unsupported.
 - A transcript is sent to a model only when the user invokes an AI action such as **Run live analysis**.
-- Evaluation events remain in browser storage unless the user exports them.
+- Evaluation events remain in browser storage unless the user explicitly saves the run to the Control Tower.
+- Saved runs can be deleted with their transcript, artifacts, evidence, and decisions in one cascaded operation.
 - Email and CRM completion occur only in a labelled demo sandbox. The interface does not claim to contact a customer or write to a real CRM.
 - Profile fields that contain private strategy stay on the server and are omitted from the public browser payload.
 - The app listens through the microphone. It does not join calls, control meeting software, or bypass participant consent.
@@ -199,6 +237,9 @@ npm run deploy    # sync private profile data, then deploy to production
 | `/api/transcribe` | `POST` | Transcribes base64 audio and filters common silence hallucinations. |
 | `/api/translate` | `POST` | Handles translation, answer generation, coaching, profile snapshots, and credit checks. |
 | `/api/close-loop` | `POST` | Converts a transcript into verified evidence, a follow-up draft, and a CRM update. |
+| `/api/runs` | `POST`, `DELETE` | Explicitly persists or deletes a transcript-backed agent run. |
+| `/api/evaluations` | `POST` | Idempotently persists a server-validated human decision. |
+| `/api/eval-dashboard` | `GET` | Returns filtered evaluation metrics and traceable recent runs. |
 
 All routes honor the optional access key. AI routes also honor the access window and credit reserve.
 
@@ -207,12 +248,14 @@ All routes honor the optional access key. AI routes also honor the access window
 ```text
 api/                         Vercel Functions and shared server-side profile/access logic
 data/                        Example profile and deterministic Close the Loop fixture
+supabase/                    Reproducible schema migrations and labelled demo seed data
 desktop/                     Electron overlay wrapper
 scripts/                     Terminal listener, profile sync, and credit utilities
 test/                        Unit and integration-style Node tests
 app.js                       Live copilot and answer coach client
 close-loop.js                Post-call workflow and presentation replay
 eval-ledger.js               Local decision events and evaluation metrics
+eval-dashboard.js            Durable Control Tower client and source-trace rendering
 view-controller.js           Shareable product-mode routing
 index.html / styles.css       Product shell and Ghost-inspired visual system
 DESIGN.md                    Design direction, interaction rules, and accessibility constraints
@@ -234,6 +277,10 @@ vercel --prod
 ```
 
 The production deployment needs HTTPS for microphone access and a serverless runtime for `/api/*`.
+
+## Interview deck
+
+[`docs/GENSPARK_DECK_PROMPT.md`](docs/GENSPARK_DECK_PROMPT.md) contains a detailed, source-grounded prompt for generating the CEO presentation in Genspark. It specifies the narrative, slide-by-slide content, architecture diagrams, visual system, speaker notes, and accuracy guardrails.
 
 ## Limitations
 
