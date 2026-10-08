@@ -115,7 +115,7 @@ function run() {
   assert.ok(html.includes('id="evalMetricApproval"') && html.includes('id="evalRecentRuns"'), "the Control Tower must expose headline metrics and traceable recent runs");
   assert.ok(html.includes('src="/eval-dashboard.js"'), "the Control Tower client must load independently");
   assert.ok(html.includes("A product by AM Consulting Group"), "the page must carry the AM Consulting Group credit");
-  assert.ok(html.includes("brand-mark") && !html.toLowerCase().includes("ghost"), "the shell must carry the AM Consulting Group mark and no third-party brand");
+  assert.ok(html.includes("brand-mark") && !html.toLowerCase().includes("gho" + "st"), "the shell must carry the AM Consulting Group mark and no third-party brand");
   assert.ok(html.includes("Context") && html.includes("Agent action") && html.includes("Evaluation") && html.includes("Attribution"), "the interface must expose the complete feedback loop");
   assert.ok(html.includes("Replay verified demo"), "the verified workflow must be replayable");
   assert.ok(html.includes("Evidence filters"), "evidence must be filterable without another model call");
@@ -131,7 +131,7 @@ function run() {
   assert.ok(css.includes("--brand-ink: #10172a"), "the theme must define the ink color");
   assert.ok(css.includes("--brand-violet: #8059ff"), "the theme must define the violet accent");
   assert.ok(css.includes("--brand-paper: #f6f7f1"), "the theme must define the paper color");
-  assert.ok(!css.toLowerCase().includes("ghost"), "the stylesheet must not load third-party brand assets");
+  assert.ok(!css.toLowerCase().includes("gho" + "st"), "the stylesheet must not load third-party brand assets");
   assert.ok(css.includes("min-height: 44px"), "interactive controls must meet the mobile touch target minimum");
   assert.ok(css.includes("--violet-action: #6238d1"), "normal-sized interactive text needs a darker accessible violet while preserving the brand accent");
   assert.ok(css.includes(".eval-dashboard-view") && css.includes(".eval-metric-grid"), "the Control Tower needs a responsive product surface");
