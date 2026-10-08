@@ -61,7 +61,7 @@
       if (options && options.push && history && history.pushState) {
         history.pushState({ view: active }, "", viewHref(active, location.search));
       }
-      doc.title = state.title + " — an independent Ghost concept";
+      doc.title = state.title + " — AM Consulting Group";
       if (typeof root.CustomEvent === "function") {
         root.dispatchEvent(new root.CustomEvent("productviewchange", { detail: { view: active } }));
       }
