@@ -114,8 +114,8 @@ function run() {
   assert.ok(html.includes('id="evalDatasetFilter"') && html.includes('id="evalArtifactFilter"'), "the Control Tower must separate demo/live data and artifact types");
   assert.ok(html.includes('id="evalMetricApproval"') && html.includes('id="evalRecentRuns"'), "the Control Tower must expose headline metrics and traceable recent runs");
   assert.ok(html.includes('src="/eval-dashboard.js"'), "the Control Tower client must load independently");
-  assert.ok(html.includes("Independent product concept by Ankit Mishra"), "the page must not imply official Ghost ownership");
-  assert.ok(html.includes("wordmark-paper.png"), "the shell must use Ghost's public paper wordmark asset");
+  assert.ok(html.includes("A product by AM Consulting Group"), "the page must carry the AM Consulting Group credit");
+  assert.ok(html.includes("brand-mark") && !html.toLowerCase().includes("ghost"), "the shell must carry the AM Consulting Group mark and no third-party brand");
   assert.ok(html.includes("Context") && html.includes("Agent action") && html.includes("Evaluation") && html.includes("Attribution"), "the interface must expose the complete feedback loop");
   assert.ok(html.includes("Replay verified demo"), "the verified workflow must be replayable");
   assert.ok(html.includes("Evidence filters"), "evidence must be filterable without another model call");
@@ -128,10 +128,10 @@ function run() {
   assert.ok(html.includes('aria-labelledby="transcriptTitle"') && html.includes('aria-labelledby="answerTitle"'), "live and practice textareas must have programmatic labels");
 
   const css = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
-  assert.ok(css.includes("--ghost-ink: #10172a"), "the theme must use Ghost's measured ink color");
-  assert.ok(css.includes("--ghost-violet: #8059ff"), "the theme must use Ghost's measured violet accent");
-  assert.ok(css.includes("--ghost-paper: #f6f7f1"), "the theme must use Ghost's measured paper color");
-  assert.ok(css.includes("PP Neue Montreal"), "the interface must use Ghost's public display typography");
+  assert.ok(css.includes("--brand-ink: #10172a"), "the theme must define the ink color");
+  assert.ok(css.includes("--brand-violet: #8059ff"), "the theme must define the violet accent");
+  assert.ok(css.includes("--brand-paper: #f6f7f1"), "the theme must define the paper color");
+  assert.ok(!css.toLowerCase().includes("ghost"), "the stylesheet must not load third-party brand assets");
   assert.ok(css.includes("min-height: 44px"), "interactive controls must meet the mobile touch target minimum");
   assert.ok(css.includes("--violet-action: #6238d1"), "normal-sized interactive text needs a darker accessible violet while preserving the brand accent");
   assert.ok(css.includes(".eval-dashboard-view") && css.includes(".eval-metric-grid"), "the Control Tower needs a responsive product surface");
@@ -141,9 +141,9 @@ function run() {
   assert.ok(app.includes('querySelector("[data-view-panel=coach]")'), "overlay and mini-window modes must expose the answer surface");
 
   const design = fs.readFileSync(path.join(__dirname, "..", "DESIGN.md"), "utf8");
-  assert.ok(design.includes("#10172A") && design.includes("#F6F7F1") && design.includes("#8059FF"), "DESIGN.md must lock the measured Ghost palette");
+  assert.ok(design.includes("#10172A") && design.includes("#F6F7F1") && design.includes("#8059FF"), "DESIGN.md must lock the brand palette");
   assert.ok(design.includes("Direction B"), "DESIGN.md must record the approved visual direction");
-  assert.ok(design.includes("Independent product concept by Ankit Mishra"), "DESIGN.md must preserve the authorship boundary");
+  assert.ok(design.includes("AM Consulting Group"), "DESIGN.md must name the brand owner");
 
   const script = fs.readFileSync(path.join(__dirname, "..", "close-loop.js"), "utf8");
   assert.ok(script.includes("loadDemo(false, false)"), "automatic demo loading must preserve the branded hero position and remain outside presentation mode");

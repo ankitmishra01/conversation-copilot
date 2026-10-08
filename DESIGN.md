@@ -4,7 +4,7 @@
 
 The approved Close the Loop treatment is **Direction B**: the customer evidence trace is the primary visual and interaction model. The product should feel like one fact moving from source context through an agent action, human evaluation, and eventual attribution. It must not read as a generic dashboard or a collection of disconnected cards.
 
-This is an **Independent product concept by Ankit Mishra**. Keep that line visible beside the Ghost wordmark so the prototype demonstrates brand fluency without implying official ownership.
+This is a product of **AM Consulting Group**. Keep the AM Consulting Group text mark and the credit line "A product by AM Consulting Group" visible in the header.
 
 ## Brand foundation
 
@@ -12,8 +12,8 @@ This is an **Independent product concept by Ankit Mishra**. Keep that line visib
 - Paper: `#F6F7F1`
 - Violet: `#8059FF`
 - Bright surface: `#FFFFFF`
-- Typeface: PP Neue Montreal, loaded from Ghost's publicly served font files with Helvetica Neue as fallback
-- Wordmark: Ghost's public paper wordmark on ink; never redraw or distort it
+- Typeface: Helvetica Neue with Arial as fallback
+- Wordmark: the text mark "AM Consulting Group" in the header, set in the page typeface
 
 Violet indicates selection, focus, and the next primary action. Green is reserved for verified or completed states. Red is reserved for unsupported evidence and rejection. Remove decorative gradients, shadows, icon circles, and unnecessary rounding.
 

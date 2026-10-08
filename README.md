@@ -6,7 +6,7 @@
 
 Conversation Copilot listens through your microphone, transcribes speech, and provides tactical coaching grounded in a configurable profile. After a call, **Close the Loop** converts the transcript into traceable commitments, an editable follow-up email, and a CRM update. Human approvals, edits, and rejections become evaluation data that can improve the next run.
 
-This repository is an independent product concept by Ankit Mishra. The Ghost-branded interface demonstrates product and brand fluency; it is not an official Ghost product.
+This repository is a product of AM Consulting Group.
 
 ![Close the Loop workflow showing source evidence, a human-reviewed action, and the resulting learned guidance](docs/assets/close-the-loop-workflow.png)
 
@@ -34,15 +34,15 @@ Each mode has a shareable URL: `?view=live`, `?view=coach`, `?view=loop`, or `?v
 
 ## Why this product
 
-The prototype responds to Ghost's AI Builder brief with a narrow end-to-end workflow: turn a customer conversation into work that is grounded, reviewed, completed, measured, and improved. It demonstrates the full loop described in the brief:
+The product is a narrow end-to-end workflow: turn a customer conversation into work that is grounded, reviewed, completed, measured, and improved. It demonstrates the full loop:
 
 ```text
 Context → Agent action → Human evaluation → Learned guidance → Attribution
 ```
 
-The central product bet is that the human decision is not merely a UI event. An approval, edit, rejection, or ignored draft becomes structured evaluation data tied to the account, source evidence, artifact, agent run, and eventual outcome. That gives Ghost a path from useful daily workflow to a proprietary quality and trust layer.
+The central product bet is that the human decision is not merely a UI event. An approval, edit, rejection, or ignored draft becomes structured evaluation data tied to the account, source evidence, artifact, agent run, and eventual outcome. That gives a team a path from useful daily workflow to a proprietary quality and trust layer.
 
-The current build deliberately keeps CRM and email actions inside a labelled sandbox. Production integration would use Ghost's governed write layer while preserving the CRM as the revenue system of record.
+The current build deliberately keeps CRM and email actions inside a labelled sandbox. Production integration would use a governed write layer while preserving the CRM as the revenue system of record.
 
 ## Design principles
 
@@ -393,7 +393,7 @@ close-loop.js                Post-call workflow and presentation replay
 eval-ledger.js               Local decision events and evaluation metrics
 eval-dashboard.js            Durable Control Tower client and source-trace rendering
 view-controller.js           Shareable product-mode routing
-index.html / styles.css       Product shell and Ghost-inspired visual system
+index.html / styles.css       Product shell and visual system
 DESIGN.md                    Design direction, interaction rules, and accessibility constraints
 ```
 
@@ -459,12 +459,6 @@ The production deployment needs HTTPS for microphone access and a serverless run
 | Dashboard is empty | No live run was explicitly saved, or filters exclude it. | Save a run from Close the Loop and clear the dashboard filters. |
 | A rejection cannot be submitted | Rejections require structured feedback. | Choose or enter a rejection reason before submitting. |
 | Desktop or listener points at the wrong environment | `COPILOT_URL` is unset or stale. | Set it to `http://localhost:3000` or the current deployed URL. |
-
-## Interview deck
-
-[`docs/GENSPARK_DECK_PROMPT.md`](docs/GENSPARK_DECK_PROMPT.md) contains a detailed, source-grounded prompt for generating the CEO presentation in Genspark. It specifies the narrative, slide-by-slide content, architecture diagrams, visual system, speaker notes, and accuracy guardrails.
-
-[`docs/ASSET_GUIDE.md`](docs/ASSET_GUIDE.md) provides direct GitHub links to the Ghost wordmark and high-resolution product screenshots, plus the exact palette, typography fallbacks, usage rules, and claim boundaries Genspark should follow.
 
 ## Limitations
 
