@@ -12,13 +12,13 @@ insert into public.conversations (id, idempotency_key, account_name, scenario, t
 values
   ('10000000-0000-4000-8000-000000000001', 'seed:northstar', 'Northstar Analytics', 'Renewal and expansion call', 'Ava: I will send the updated data-retention packet by Friday, October 9. Marcus: The immediate blocker is still the security packet.', 'demo', '2026-10-01T14:00:00Z', '2026-10-01T14:00:00Z'),
   ('10000000-0000-4000-8000-000000000002', 'seed:juniper', 'Juniper Health', 'Renewal checkpoint', 'Maya: I will send the updated data-processing addendum today. Jonah: Let us revisit forecasting after the renewal is signed.', 'demo', '2026-10-02T14:00:00Z', '2026-10-02T14:00:00Z')
-on conflict (idempotency_key) do nothing;
+on conflict (workspace_id, idempotency_key) do nothing;
 
 insert into public.agent_runs (id, conversation_id, idempotency_key, model, status, summary, warnings, dataset_kind, created_at)
 values
   ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'seed:northstar:analysis', 'verified-fixture', 'completed', 'Renewal depends on the security packet.', '[]', 'demo', '2026-10-01T14:00:05Z'),
   ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', 'seed:juniper:analysis', 'verified-fixture', 'completed', 'Renewal depends on legal review.', '[]', 'demo', '2026-10-02T14:00:05Z')
-on conflict (idempotency_key) do nothing;
+on conflict (workspace_id, idempotency_key) do nothing;
 
 insert into public.artifacts (id, run_id, artifact_type, original_content)
 values

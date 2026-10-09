@@ -15,6 +15,7 @@ function run() {
   assert.ok(sql.includes("on delete cascade"), "deleting a conversation must delete dependent records");
   assert.ok(sql.includes("idempotency_key") && sql.includes("unique"), "writes must be idempotent");
   assert.ok(sql.includes("revoke execute on function public.rls_auto_enable() from public, anon, authenticated"), "the project-default SECURITY DEFINER helper must not be publicly executable");
+  assert.ok(sql.includes("workspace_id") && sql.includes("unique (workspace_id, idempotency_key)"), "runs and conversations must be owned by a workspace");
   const seed = fs.readFileSync(path.join(__dirname, "..", "supabase", "seed.sql"), "utf8").toLowerCase();
   assert.ok(seed.includes("dataset_kind") && seed.includes("demo"), "seed data must be explicitly labelled as demo data");
 

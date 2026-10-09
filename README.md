@@ -96,7 +96,9 @@ Microphone or transcript
              Translation and coaching
                          |
                          v
-              Source-backed extraction
+     Schema-constrained extraction
+                         |
+     Exact-quote check + semantic check
                          |
              +-----------+-----------+
              v                       v
@@ -118,7 +120,8 @@ Browser workflow
   └─ approve / edit / reject decisions
                  |
                  v
-Vercel Functions: validation, idempotency, access boundary
+Vercel Functions: auth, rate limits, validation, idempotency,
+                  quote re-verification, workspace scoping
                  |
                  v
 Supabase Postgres
@@ -138,7 +141,7 @@ The browser is a plain HTML, CSS, and JavaScript client. Vercel Functions provid
 | Layer | Responsibility | Sensitive data handling |
 | --- | --- | --- |
 | Browser client | Capture, mode navigation, artifact review, local ledger, presentation replay, and dashboard rendering. | Receives a redacted profile; retains unsaved evaluations locally. |
-| Vercel Functions | Access checks, validation, model orchestration, evidence verification, persistence, analytics, and deletion. | Keeps private profile fields and service credentials server-side. |
+| Vercel Functions | Access checks, per-client rate limits, validation, model orchestration, evidence verification (recomputed on save), workspace-scoped persistence, analytics, and deletion. | Keeps private profile fields and service credentials server-side. |
 | Vercel AI Gateway | Speech-to-text, translation, coaching, snapshots, and Close the Loop analysis. | Invoked only for an explicit AI action or active listening session. |
 | Supabase Postgres | Durable conversations, runs, artifacts, evidence, evaluation events, learned rules, and applications. | Accessed with a server-only secret; browser clients do not query tables directly. |
 | Private memory repository | Optional source for `data/profile.json` during deployment. | Read by the deployment sync script, never exposed directly to the client. |
@@ -197,12 +200,13 @@ Open `http://localhost:3000`. Microphone access requires `localhost` or HTTPS.
 The deterministic demo and browser-local ledger do not require Supabase. To persist runs and use the Control Tower with live data:
 
 1. Create or connect a Supabase project.
-2. Apply [`supabase/migrations/20261004022209_create_eval_control_tower.sql`](supabase/migrations/20261004022209_create_eval_control_tower.sql).
+2. Apply the migrations in order, starting with [`supabase/migrations/20261004022209_create_eval_control_tower.sql`](supabase/migrations/20261004022209_create_eval_control_tower.sql).
 3. Apply [`supabase/migrations/20261004022943_lock_down_rls_auto_enable.sql`](supabase/migrations/20261004022943_lock_down_rls_auto_enable.sql).
-4. Optionally load [`supabase/seed.sql`](supabase/seed.sql) for labelled demo data.
-5. Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in `.env.local` or the Vercel project environment.
+4. Apply [`supabase/migrations/20261009120000_workspace_ownership.sql`](supabase/migrations/20261009120000_workspace_ownership.sql), which adds `workspace_id` to conversations and runs and makes idempotency keys unique per workspace.
+5. Optionally load [`supabase/seed.sql`](supabase/seed.sql) for labelled demo data.
+6. Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in `.env.local` or the Vercel project environment.
 
-The schema enables row-level security and revokes direct access from public roles. All reads and writes in this prototype pass through server-side functions.
+The schema enables row-level security and revokes direct access from public roles. All reads and writes in this prototype pass through server-side functions. The server uses the service role, which bypasses RLS, so tenant isolation is enforced in application code: every run, evaluation, delete and dashboard query is filtered by the caller's workspace. Per-user RLS policies would need real user logins and are not implemented.
 
 ## Configure the copilot
 
@@ -249,7 +253,14 @@ The browser receives only a redacted profile from `/api/profile`. Sensitive coac
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `AI_GATEWAY_API_KEY` | Local AI use | Authenticates AI Gateway requests. Vercel OIDC can supply deployment authentication instead. |
-| `COPILOT_KEY` | No | Protects API access with a shared secret. Visit once with `?k=<value>` to store it locally. |
+| `COPILOT_KEY` | Yes in production | Shared secret for API access (workspace `default`). Visit once with `?k=<value>` to store it locally. With no key set, preview and production deployments reject every request; local development stays open. |
+| `COPILOT_KEYS` | No | Comma-separated `workspace:key` pairs. Each key reads and writes only its own workspace's runs, evaluations and dashboard. |
+| `COPILOT_ALLOW_OPEN` | No | `1` explicitly allows unauthenticated access when no key is configured (demo deployments only). |
+| `COPILOT_RATE_LIMIT_PER_MIN` | No | Overrides the per-client, per-route request limit (defaults: 10 for close-loop, 60 elsewhere). The limiter is per serverless instance; add a Vercel WAF rate-limit rule for a global ceiling. |
+| `COPILOT_ALLOW_RESERVE_TEST` | No | `1` lets request bodies raise the spend reserve (`reserveTest`) for load testing. Ignored by default. |
+| `AI_GATEWAY_LOOP_MODELS` | No | Comma-separated model chain for Close the Loop, tried in order. Defaults to the primary model plus two fallbacks. |
+| `AI_GATEWAY_JUDGE_MODEL` | No | Model for the semantic grounding check. Defaults to the same chain. |
+| `COPILOT_SEMANTIC_CHECK` | No | `off` skips the second-pass check that each quote supports its claim, owner and due date. |
 | `COPILOT_URL` | CLI only | Base URL used by the listener and credit scripts. Defaults to `http://localhost:3000`. |
 | `COPILOT_ACTIVE_UNTIL` | No | ISO timestamp after which AI routes stop responding. |
 | `COPILOT_RECALL` | No | Set to `enabled` to reopen an expired access window. |
@@ -269,7 +280,15 @@ See [`.env.example`](.env.example) for a copy-ready configuration.
 
 ### Access control and expiry behavior
 
-When `COPILOT_KEY` is set, API callers must send the key through the app. Visiting `?k=<value>` stores it in browser local storage and removes the need to keep the secret in shared URLs. CLI requests use the same access boundary.
+Access is closed by default. Preview and production deployments reject every API request unless `COPILOT_KEY` or `COPILOT_KEYS` is set. Local development (`VERCEL_ENV` unset or `development`) stays open, and `COPILOT_ALLOW_OPEN=1` is the explicit opt-out for demo deployments.
+
+API callers send the key in the `x-copilot-key` header. Visiting `?k=<value>` stores it in browser local storage and removes the need to keep the secret in shared URLs. CLI requests use the same access boundary.
+
+`COPILOT_KEYS=acme:key-a,globex:key-b` maps each key to its own workspace. A key can only list, save, evaluate and delete runs in its own workspace. `COPILOT_KEY` alone uses the workspace `default`.
+
+Each route limits requests per client IP and key (10 per minute for `/api/close-loop`, 60 per minute elsewhere) and answers `429` with `Retry-After`. The limiter lives in one serverless instance's memory, so treat it as abuse damping and add a Vercel WAF rate-limit rule for a global ceiling. The `reserveTest` request field is ignored unless `COPILOT_ALLOW_RESERVE_TEST=1`, so callers cannot probe or change the spend reserve.
+
+`vercel.json` sets a Content-Security-Policy (same-origin scripts and connections), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, a microphone-only Permissions-Policy and HSTS.
 
 `COPILOT_ACTIVE_UNTIL` can close the model-backed routes after a fixed time. `COPILOT_RECALL=enabled` reopens them without changing the timestamp. The reserve variables add a second guard so a live demo does not consume the last portion of an AI Gateway balance.
 
@@ -288,6 +307,9 @@ The listener queues audio chunks, retries rate-limited transcription requests fo
 ## Trust and privacy boundaries
 
 - Extracted commitments, blockers, and expansion signals keep an exact source quote. Quotes missing from the transcript are marked unsupported.
+- A second model pass checks that each quote actually supports its claim, owner and due date. Unsupported owners become `Unassigned`, unsupported due dates are cleared, and the item is flagged "Quote does not support claim". If that check is unavailable the run still returns, with a warning.
+- When any item is unsupported, the follow-up email and CRM update are rewritten from verified items only, or withheld if the rewrite fails. Unsupported text never reaches a draft.
+- The server recomputes `verified` from the saved transcript on `POST /api/runs`; a `verified` flag sent by the browser is ignored. The semantic `supported` flag is still client-supplied and is stored for analysis only.
 - A transcript is sent to a model only when the user invokes an AI action such as **Run live analysis**.
 - Evaluation events remain in browser storage unless the user explicitly saves the run to the Control Tower.
 - Saved runs can be deleted with their transcript, artifacts, evidence, and decisions in one cascaded operation.
@@ -318,7 +340,7 @@ npm run deploy    # sync private profile data, then deploy to production
 | `/api/evaluations` | `POST` | Idempotently persists a server-validated human decision. |
 | `/api/eval-dashboard` | `GET` | Returns filtered evaluation metrics and traceable recent runs. |
 
-All routes honor the optional access key. AI routes also honor the access window and credit reserve.
+All routes require an access key outside local development and are rate limited (see Access control). AI routes also honor the access window and credit reserve.
 
 ### Representative API contracts
 
@@ -334,7 +356,9 @@ curl -X POST http://localhost:3000/api/close-loop \
   }'
 ```
 
-The response contains normalized evidence, warnings for unsupported quotes, a follow-up draft, and a CRM artifact. Transcripts are capped at 20,000 characters.
+Send `x-copilot-key: <key>` when a key is configured. The response contains normalized evidence (each item has `verified` for the exact-quote match and `supported` for the semantic check, `null` when that check did not run), warnings for unsupported items, a follow-up draft, and a CRM artifact. `draftsRegrounded` or `draftsWithheld` is set when unsupported items changed the drafts. Transcripts are capped at 20,000 characters.
+
+Extraction requests a strict JSON schema from the gateway. A model that rejects the schema is retried without it, and a model that errors, times out (45 seconds) or returns unparseable output falls through to the next model in `AI_GATEWAY_LOOP_MODELS`. If every model fails the route returns `502`. A run makes two to three model calls: extraction, the semantic check, and a draft rewrite only when something is unsupported.
 
 Persist an explicitly consented run:
 
@@ -440,8 +464,8 @@ The production deployment needs HTTPS for microphone access and a serverless run
 
 1. Run `npm run check` and `npm test`.
 2. Confirm `data/profile.json` is present locally or configure `MEMORY_REPO` and `MEMORY_PATH`.
-3. Configure AI Gateway and Supabase credentials in the Vercel project environment.
-4. Configure optional access, expiry, and credit-reserve variables.
+3. Configure AI Gateway and Supabase credentials in the Vercel project environment, and apply all three migrations.
+4. Set `COPILOT_KEY` (or `COPILOT_KEYS` for several workspaces); production and preview reject all API calls without one. Configure optional expiry, rate-limit, and credit-reserve variables.
 5. Run `npm run deploy`, which syncs private profile data before invoking `vercel --prod`.
 6. Open all four shareable views and verify the access boundary, microphone permission, live analysis, explicit save, dashboard refresh, and delete flow.
 
@@ -452,15 +476,18 @@ The production deployment needs HTTPS for microphone access and a serverless run
 | Verified replay does not load | The site was opened without the demo query or an old asset is cached. | Open `?view=loop&demo=commitment-loop`, then hard refresh. |
 | Microphone button does nothing | The page is not on HTTPS/localhost or permission was denied. | Use the deployed HTTPS URL or `localhost`, then re-enable microphone permission. |
 | Other participant is missing from the transcript | Browser microphone capture does not automatically include system audio. | Use speakers or a loopback device such as BlackHole with the terminal listener. |
-| AI action returns an access error | `COPILOT_KEY` is configured but not stored by this browser. | Visit once with `?k=<value>` or provide the key to the CLI. |
+| AI action returns an access error | `COPILOT_KEY` is configured but not stored by this browser, or a deployment has no key configured at all. | Visit once with `?k=<value>` or provide the key to the CLI. For a keyless demo deployment set `COPILOT_ALLOW_OPEN=1`. |
+| Requests return `429` | The per-client rate limit was reached. | Wait for `Retry-After` seconds or raise `COPILOT_RATE_LIMIT_PER_MIN`. |
 | AI action reports an expired window | `COPILOT_ACTIVE_UNTIL` is in the past. | Set a later timestamp or enable `COPILOT_RECALL`. |
 | AI action falls back or reports gateway failure | Gateway authentication, model availability, rate limits, or credit reserve blocked the request. | Check `AI_GATEWAY_API_KEY`, run `npm run credits`, and inspect the model override variables. |
-| Save to Control Tower fails | Supabase credentials or migrations are missing. | Verify both server-side variables and apply the two migrations in order. |
+| Save to Control Tower fails | Supabase credentials or migrations are missing. | Verify both server-side variables and apply all three migrations in order. |
 | Dashboard is empty | No live run was explicitly saved, or filters exclude it. | Save a run from Close the Loop and clear the dashboard filters. |
 | A rejection cannot be submitted | Rejections require structured feedback. | Choose or enter a rejection reason before submitting. |
 | Desktop or listener points at the wrong environment | `COPILOT_URL` is unset or stale. | Set it to `http://localhost:3000` or the current deployed URL. |
 
 ## Limitations
+
+The rate limiter is per serverless instance, workspace isolation is enforced in server code rather than by per-user RLS, and the semantic grounding check is a second model judgement, not a proof. It lowers hallucinated commitments but a model can still mis-grade a quote, so keep the human approve, edit and reject step.
 
 Browsers cannot silently capture all system audio. Play the other participant through speakers or use a loopback device such as BlackHole with the terminal listener. A shared microphone cannot reliably distinguish your voice from the other participant, so the interface includes **Pause my voice** and **Resume incoming** controls.
 

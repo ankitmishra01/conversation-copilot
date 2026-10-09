@@ -91,12 +91,102 @@ async function run() {
     const body = JSON.parse(okRes.body);
     assert.strictEqual(body.commitments[0].verified, true, "the endpoint must return normalized evidence, not raw model output");
     assert.strictEqual(body.model, "openai/gpt-6.1-sol-fast");
-    assert.strictEqual(gatewayRequest.response_format, undefined, "gateway requests must not force response_format because supported models differ");
+    assert.strictEqual(gatewayRequest.response_format.type, "json_schema", "extraction must request schema-constrained output");
+    assert.strictEqual(gatewayRequest.response_format.json_schema.strict, true);
   } finally {
     global.fetch = realFetch;
   }
 
+  await groundingTests(closeLoop, transcript);
   console.log("close-loop.test.js OK");
+}
+
+function gatewayReply(content) {
+  return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify(content) } }] }) };
+}
+
+async function groundingTests(closeLoop, transcript) {
+  const realFetch = global.fetch;
+  const extraction = {
+    summary: "Security follow-up.",
+    commitments: [
+      { id: "c1", party: "seller", owner: "Maya", action: "Send the security packet", dueDate: "Friday", confidence: 0.9, sourceQuote: "I will send the security packet by Friday." },
+      { id: "c2", party: "customer", owner: "Leo", action: "Sign the contract", dueDate: "Monday", confidence: 0.8, sourceQuote: "We should revisit the analytics add-on next quarter." }
+    ],
+    blockers: [], expansionSignals: [],
+    followUp: { subject: "Next steps", body: "I will send the packet and Leo will sign the contract Monday." },
+    crm: { summary: "Packet and contract.", nextStep: "Send packet", nextStepDate: null, stageSuggestion: null }
+  };
+  const calls = [];
+  global.fetch = async (_url, options) => {
+    const request = JSON.parse(options.body);
+    const name = request.response_format && request.response_format.json_schema.name;
+    calls.push({ model: request.model, name });
+    if (name === "close_loop_analysis") return gatewayReply(extraction);
+    if (name === "grounding_check") return gatewayReply({ results: [
+      { id: "commitment:c1", supported: true, ownerSupported: true, dueDateSupported: true },
+      { id: "commitment:c2", supported: false, ownerSupported: true, dueDateSupported: false }
+    ] });
+    if (name === "grounded_drafts") {
+      assert.ok(!JSON.stringify(request.messages).includes("contract"), "regenerated drafts must not see unsupported items");
+      return gatewayReply({ followUp: { subject: "Next steps", body: "I will send the security packet by Friday." }, crm: { summary: "Packet pending.", nextStep: "Send packet", nextStepDate: null, stageSuggestion: null } });
+    }
+    throw new Error("unexpected call " + name);
+  };
+  try {
+    const res = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, res);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.commitments[0].supported, true);
+    assert.strictEqual(body.commitments[1].supported, false, "a quote that exists but does not support the claim must be flagged");
+    assert.strictEqual(body.commitments[1].dueDate, null, "an ungrounded due date must be cleared");
+    assert.ok(!body.followUp.body.includes("contract"), "drafts must not restate unsupported items");
+    assert.strictEqual(body.draftsRegrounded, true);
+    assert.deepStrictEqual(calls.map((c) => c.name), ["close_loop_analysis", "grounding_check", "grounded_drafts"]);
+
+    // Draft regeneration fails: drafts are withheld, never passed through.
+    global.fetch = async (_url, options) => {
+      const name = JSON.parse(options.body).response_format.json_schema.name;
+      if (name === "close_loop_analysis") return gatewayReply(extraction);
+      if (name === "grounding_check") return gatewayReply({ results: [{ id: "commitment:c1", supported: true, ownerSupported: true, dueDateSupported: true }, { id: "commitment:c2", supported: false, ownerSupported: true, dueDateSupported: true }] });
+      return { ok: false, status: 500, json: async () => ({}) };
+    };
+    const withheld = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, withheld);
+    const withheldBody = JSON.parse(withheld.body);
+    assert.strictEqual(withheldBody.draftsWithheld, true);
+    assert.strictEqual(withheldBody.followUp.body, "");
+
+    // Judge unavailable: extraction still returns, only exact-quote matching applies.
+    global.fetch = async (_url, options) => {
+      const name = JSON.parse(options.body).response_format.json_schema.name;
+      if (name === "close_loop_analysis") return gatewayReply(Object.assign({}, extraction, { commitments: [extraction.commitments[0]] }));
+      return { ok: false, status: 500, json: async () => ({}) };
+    };
+    const noJudge = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, noJudge);
+    const noJudgeBody = JSON.parse(noJudge.body);
+    assert.strictEqual(noJudge.statusCode, 200);
+    assert.strictEqual(noJudgeBody.commitments[0].supported, null);
+    assert.ok(noJudgeBody.warnings.some((w) => w.includes("Semantic grounding check")));
+
+    // Model fallback + response_format rejection.
+    const attempts = [];
+    global.fetch = async (_url, options) => {
+      const request = JSON.parse(options.body);
+      attempts.push([request.model, Boolean(request.response_format)]);
+      if (request.model === closeLoop.DEFAULT_MODEL) return { ok: false, status: request.response_format ? 400 : 503, json: async () => ({}) };
+      if (request.response_format && request.response_format.json_schema.name !== "close_loop_analysis") return gatewayReply({ results: [] });
+      return gatewayReply(Object.assign({}, extraction, { commitments: [extraction.commitments[0]] }));
+    };
+    const fallback = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, fallback);
+    assert.strictEqual(fallback.statusCode, 200);
+    assert.strictEqual(JSON.parse(fallback.body).model, closeLoop.modelChain()[1], "a failing primary model must fall back");
+    assert.deepStrictEqual(attempts.slice(0, 3), [[closeLoop.DEFAULT_MODEL, true], [closeLoop.DEFAULT_MODEL, false], [closeLoop.modelChain()[1], true]]);
+  } finally {
+    global.fetch = realFetch;
+  }
 }
 
 module.exports = { run };

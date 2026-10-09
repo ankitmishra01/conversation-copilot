@@ -1,7 +1,7 @@
 // api/translate.js
 const profile = require("./_profile");
 const memory = require("./_memory");
-const { keyOk, accessState, reserveGuard, reserveConfig } = require("./_access");
+const { keyOk, accessState, reserveGuard, reserveConfig, rateLimit } = require("./_access");
 
 function clean(value, limit, fromEnd) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -402,6 +402,13 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+  const limited = rateLimit(req, "translate", 60);
+  if (!limited.ok) {
+    res.statusCode = 429;
+    res.setHeader("Retry-After", String(limited.retryAfter));
+    res.end(JSON.stringify({ error: "rate_limited", retryAfter: limited.retryAfter }));
     return;
   }
   let body = {};

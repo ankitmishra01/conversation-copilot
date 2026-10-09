@@ -492,14 +492,15 @@
     function evidenceCard(item, index) {
       var article = document.createElement("button");
       article.type = "button";
-      article.className = "evidence-card" + (item.verified ? " is-verified" : " is-unsupported");
+      var grounded = item.verified && item.supported !== false;
+      article.className = "evidence-card" + (grounded ? " is-verified" : " is-unsupported");
       article.setAttribute("aria-label", "Show source for " + (item.kind === "commitment" ? item.action : item.label));
       var number = document.createElement("span");
       number.className = "evidence-number";
       number.textContent = String(index + 1);
       var marker = document.createElement("span");
       marker.className = "evidence-marker";
-      marker.textContent = item.verified ? "Source verified" : "Unsupported";
+      marker.textContent = !item.verified ? "Unsupported" : item.supported === false ? "Quote does not support claim" : "Source verified";
       var title = document.createElement("h4");
       title.textContent = item.kind === "commitment" ? item.action : item.label;
       var meta = document.createElement("p");

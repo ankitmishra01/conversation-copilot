@@ -1,4 +1,4 @@
-const { keyOk } = require("./_access");
+const { keyOk, authenticate, rateLimit } = require("./_access");
 const { createEvalStore } = require("./_eval-store");
 const evalLedger = require("../eval-ledger");
 
@@ -9,7 +9,7 @@ function send(res, status, value) {
   return res.end(JSON.stringify(value));
 }
 
-function normalizeEvaluation(body) {
+function normalizeEvaluation(body, workspace) {
   const input = body || {};
   if (!String(input.idempotencyKey || "").trim()) return { error: "idempotency_key_required" };
   if (!String(input.runId || "").trim()) return { error: "run_id_required" };
@@ -18,6 +18,7 @@ function normalizeEvaluation(body) {
   try {
     const event = evalLedger.createDecisionEvent(input);
     return {
+      workspace: workspace || "default",
       idempotencyKey: String(input.idempotencyKey),
       runId: String(input.runId),
       artifactType: event.artifactType,
@@ -42,12 +43,15 @@ function createHandler(store) {
   return async function handler(req, res) {
     res.setHeader("Allow", "POST");
     if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
-    if (!keyOk(req)) return send(res, 401, { error: "key_required" });
+    const auth = authenticate(req);
+    if (!auth.ok) return send(res, 401, { error: "key_required" });
+    const limited = rateLimit(req, "evaluations", 60);
+    if (!limited.ok) { res.setHeader("Retry-After", String(limited.retryAfter)); return send(res, 429, { error: "rate_limited", retryAfter: limited.retryAfter }); }
     let body = req.body || {};
     if (typeof body === "string") {
       try { body = JSON.parse(body); } catch (error) { return send(res, 400, { error: "invalid_json" }); }
     }
-    const input = normalizeEvaluation(body);
+    const input = normalizeEvaluation(body, auth.workspace);
     if (input.error) return send(res, 400, input);
     try {
       return send(res, 201, await store.saveEvaluation(input));
