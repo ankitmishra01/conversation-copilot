@@ -73,7 +73,33 @@ async function run() {
   await dashboardApi.createHandler(store)({ method: "GET", headers: {}, query: { dataset: "demo", artifact: "all" } }, dashboard);
   assert.strictEqual(dashboard.statusCode, 200);
   assert.strictEqual(JSON.parse(dashboard.body).summary.totalDecisions, 4);
-  assert.deepStrictEqual(calls[3], ["dashboard", { dataset: "demo", artifact: "all" }]);
+  assert.deepStrictEqual(calls[3], ["dashboard", { workspace: "default", dataset: "demo", artifact: "all" }]);
+
+  // Server-side reverification: a forged verified flag is recomputed from the transcript.
+  const forged = fakeRes();
+  await runsApi.createHandler(store)({ method: "POST", headers: {}, body: {
+    idempotencyKey: "forged-1",
+    transcript: "Ava: I will send the packet Friday.",
+    analysis: { summary: "x", commitments: [{ id: "c1", owner: "Ava", action: "Approve the deal", sourceQuote: "We approved the deal.", verified: true, supported: true }], blockers: [], expansionSignals: [], followUp: {}, crm: {} }
+  } }, forged);
+  assert.strictEqual(forged.statusCode, 201);
+  const forgedCall = calls[calls.length - 1][1];
+  assert.strictEqual(forgedCall.analysis.commitments[0].verified, false, "client-supplied verified must never be trusted");
+  assert.strictEqual(forgedCall.workspace, "default");
+
+  // Workspaces: the key decides which workspace reads and writes.
+  process.env.COPILOT_KEYS = "acme:key-a,globex:key-g";
+  const scoped = fakeRes();
+  await runsApi.createHandler(store)({ method: "DELETE", headers: { "x-copilot-key": "key-g" }, query: { id: "run-1" } }, scoped);
+  assert.strictEqual(scoped.statusCode, 200);
+  assert.deepStrictEqual(calls[calls.length - 1], ["delete", "run-1"]);
+  const dash = fakeRes();
+  await dashboardApi.createHandler(store)({ method: "GET", headers: { "x-copilot-key": "key-a" }, query: {} }, dash);
+  assert.strictEqual(calls[calls.length - 1][1].workspace, "acme");
+  const noKey = fakeRes();
+  await dashboardApi.createHandler(store)({ method: "GET", headers: {}, query: {} }, noKey);
+  assert.strictEqual(noKey.statusCode, 401);
+  delete process.env.COPILOT_KEYS;
 
   console.log("eval-api.test.js OK");
 }

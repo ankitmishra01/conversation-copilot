@@ -54,6 +54,50 @@ async function run() {
   assert.strictEqual(access.keyOk({ headers: { "x-copilot-key": "wrong" } }), false);
   delete process.env.COPILOT_KEY;
 
+  // Closed by default outside local development.
+  process.env.VERCEL_ENV = "production";
+  assert.strictEqual(access.keyOk({ headers: {} }), false, "production with no key configured must reject everything");
+  assert.strictEqual(access.authenticate({ headers: {} }).reason, "key_not_configured");
+  process.env.COPILOT_ALLOW_OPEN = "1";
+  assert.strictEqual(access.keyOk({ headers: {} }), true, "COPILOT_ALLOW_OPEN is the explicit opt-out");
+  delete process.env.COPILOT_ALLOW_OPEN;
+  process.env.VERCEL_ENV = "preview";
+  assert.strictEqual(access.keyOk({ headers: {} }), false, "preview deployments are closed too");
+
+  // Keys map to workspaces; a key never reaches another workspace.
+  process.env.COPILOT_KEYS = "acme:key-a, globex:key-g";
+  assert.strictEqual(access.authenticate({ headers: { "x-copilot-key": "key-a" } }).workspace, "acme");
+  assert.strictEqual(access.authenticate({ headers: { "x-copilot-key": "key-g" } }).workspace, "globex");
+  assert.strictEqual(access.authenticate({ headers: { "x-copilot-key": "nope" } }).ok, false);
+  delete process.env.COPILOT_KEYS;
+  delete process.env.VERCEL_ENV;
+
+  // reserveTest from a request body is ignored unless the deployment opts in.
+  access.resetReserveCache();
+  global.fetch = async () => ({ ok: true, json: async () => ({ balance: 1 }) });
+  try {
+    const ignored = await access.reserveGuard("fake-token", 50);
+    assert.strictEqual(ignored.ok, true, "a caller-supplied reserve must be ignored by default");
+    process.env.COPILOT_ALLOW_RESERVE_TEST = "1";
+    const honoured = await access.reserveGuard("fake-token", 50);
+    assert.strictEqual(honoured.ok, false);
+  } finally {
+    global.fetch = realFetch;
+    delete process.env.COPILOT_ALLOW_RESERVE_TEST;
+    access.resetReserveCache();
+  }
+
+  // Rate limiter: per bucket and per client, with Retry-After.
+  access.resetRateLimits();
+  const req = { headers: { "x-forwarded-for": "203.0.113.9" } };
+  for (let i = 0; i < 3; i += 1) assert.strictEqual(access.rateLimit(req, "t", 3).ok, true);
+  const blocked = access.rateLimit(req, "t", 3);
+  assert.strictEqual(blocked.ok, false);
+  assert.ok(blocked.retryAfter >= 1);
+  assert.strictEqual(access.rateLimit({ headers: { "x-forwarded-for": "203.0.113.10" } }, "t", 3).ok, true, "another client is unaffected");
+  assert.strictEqual(access.rateLimit(req, "other", 3).ok, true, "buckets are independent");
+  access.resetRateLimits();
+
   console.log("access.test.js OK");
 }
 

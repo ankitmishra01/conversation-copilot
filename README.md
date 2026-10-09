@@ -249,7 +249,14 @@ The browser receives only a redacted profile from `/api/profile`. Sensitive coac
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `AI_GATEWAY_API_KEY` | Local AI use | Authenticates AI Gateway requests. Vercel OIDC can supply deployment authentication instead. |
-| `COPILOT_KEY` | No | Protects API access with a shared secret. Visit once with `?k=<value>` to store it locally. |
+| `COPILOT_KEY` | Yes in production | Shared secret for API access (workspace `default`). Visit once with `?k=<value>` to store it locally. With no key set, preview and production deployments reject every request; local development stays open. |
+| `COPILOT_KEYS` | No | Comma-separated `workspace:key` pairs. Each key reads and writes only its own workspace's runs, evaluations and dashboard. |
+| `COPILOT_ALLOW_OPEN` | No | `1` explicitly allows unauthenticated access when no key is configured (demo deployments only). |
+| `COPILOT_RATE_LIMIT_PER_MIN` | No | Overrides the per-client, per-route request limit (defaults: 10 for close-loop, 60 elsewhere). The limiter is per serverless instance; add a Vercel WAF rate-limit rule for a global ceiling. |
+| `COPILOT_ALLOW_RESERVE_TEST` | No | `1` lets request bodies raise the spend reserve (`reserveTest`) for load testing. Ignored by default. |
+| `AI_GATEWAY_LOOP_MODELS` | No | Comma-separated model chain for Close the Loop, tried in order. Defaults to the primary model plus two fallbacks. |
+| `AI_GATEWAY_JUDGE_MODEL` | No | Model for the semantic grounding check. Defaults to the same chain. |
+| `COPILOT_SEMANTIC_CHECK` | No | `off` skips the second-pass check that each quote supports its claim, owner and due date. |
 | `COPILOT_URL` | CLI only | Base URL used by the listener and credit scripts. Defaults to `http://localhost:3000`. |
 | `COPILOT_ACTIVE_UNTIL` | No | ISO timestamp after which AI routes stop responding. |
 | `COPILOT_RECALL` | No | Set to `enabled` to reopen an expired access window. |

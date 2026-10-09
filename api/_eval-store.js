@@ -42,24 +42,26 @@ function createEvalStore(client) {
   return {
     async saveRun(input) {
       const conversationResult = await db().from("conversations").upsert({
+        workspace_id: input.workspace,
         idempotency_key: input.idempotencyKey,
         account_name: input.account,
         scenario: input.scenario,
         transcript: input.transcript,
         dataset_kind: input.datasetKind,
         analyzed_at: input.generatedAt || new Date().toISOString()
-      }, { onConflict: "idempotency_key" }).select("id, created_at").single();
+      }, { onConflict: "workspace_id,idempotency_key" }).select("id, created_at").single();
       throwOn(conversationResult.error);
       const conversation = conversationResult.data;
       const runResult = await db().from("agent_runs").upsert({
         conversation_id: conversation.id,
+        workspace_id: input.workspace,
         idempotency_key: input.idempotencyKey + ":analysis",
         model: input.model || "unknown",
         status: "completed",
         summary: input.analysis.summary || "",
         warnings: input.analysis.warnings || [],
         dataset_kind: input.datasetKind
-      }, { onConflict: "idempotency_key" }).select("id, created_at").single();
+      }, { onConflict: "workspace_id,idempotency_key" }).select("id, created_at").single();
       throwOn(runResult.error);
       const run = runResult.data;
       const artifacts = await db().from("artifacts").upsert(artifactRows(run.id, input.analysis), { onConflict: "run_id,artifact_type" });
@@ -72,8 +74,8 @@ function createEvalStore(client) {
       return { runId: run.id, savedAt: run.created_at || conversation.created_at };
     },
 
-    async deleteRun(runId) {
-      const lookup = await db().from("agent_runs").select("conversation_id").eq("id", runId).maybeSingle();
+    async deleteRun(runId, workspace) {
+      const lookup = await db().from("agent_runs").select("conversation_id").eq("id", runId).eq("workspace_id", workspace).maybeSingle();
       throwOn(lookup.error);
       if (!lookup.data) return false;
       const deleted = await db().from("conversations").delete().eq("id", lookup.data.conversation_id);
@@ -82,6 +84,9 @@ function createEvalStore(client) {
     },
 
     async saveEvaluation(input) {
+      const owned = await db().from("agent_runs").select("id").eq("id", input.runId).eq("workspace_id", input.workspace).maybeSingle();
+      throwOn(owned.error);
+      if (!owned.data) throw new Error("artifact_not_found");
       const artifact = await db().from("artifacts").select("id").eq("run_id", input.runId).eq("artifact_type", input.artifactType).maybeSingle();
       throwOn(artifact.error);
       if (!artifact.data) throw new Error("artifact_not_found");
@@ -107,7 +112,7 @@ function createEvalStore(client) {
     },
 
     async getDashboard(filters) {
-      const runResult = await db().from("agent_runs").select("id, created_at, dataset_kind, conversations!inner(account_name, scenario)").order("created_at", { ascending: false }).limit(200);
+      const runResult = await db().from("agent_runs").select("id, created_at, dataset_kind, conversations!inner(account_name, scenario)").eq("workspace_id", filters.workspace).order("created_at", { ascending: false }).limit(200);
       throwOn(runResult.error);
       let runs = (runResult.data || []).map((run) => ({
         id: run.id,

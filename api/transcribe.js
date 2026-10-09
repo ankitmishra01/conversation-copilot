@@ -1,7 +1,7 @@
 // api/transcribe.js
 // Cloud speech-to-text for the terminal listener (scripts/listen.js), through the AI Gateway (beta REST API).
 // Key-gated and expiry-gated exactly like /api/translate.
-const { keyOk, accessState, reserveGuard } = require("./_access");
+const { keyOk, accessState, reserveGuard, rateLimit } = require("./_access");
 const profile = require("./_profile");
 
 const ENDPOINT = "https://ai-gateway.vercel.sh/v4/ai/transcription-model";
@@ -71,6 +71,8 @@ module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   const send = (status, body) => { res.statusCode = status; res.end(JSON.stringify(body)); };
   if (req.method !== "POST") return send(405, { error: "method_not_allowed" });
+  const limited = rateLimit(req, "transcribe", 60);
+  if (!limited.ok) { res.setHeader("Retry-After", String(limited.retryAfter)); return send(429, { error: "rate_limited", retryAfter: limited.retryAfter }); }
   try {
     const state = accessState();
     if (!state.active) return send(200, { error: "copilot_expired" });
