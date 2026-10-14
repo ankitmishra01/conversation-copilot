@@ -132,6 +132,15 @@ function modelCandidates(env) {
   return list.filter((m, i) => list.indexOf(m) === i);
 }
 
+// Models differ in where they put the answer: a string, an array of text
+// parts, or (for reasoning models) a reasoning field with an empty content.
+function extractContent(json) {
+  const msg = json && json.choices && json.choices[0] && json.choices[0].message;
+  if (!msg) return "";
+  const pick = (v) => Array.isArray(v) ? v.map((p) => (p && (p.text || p.content)) || "").join("") : (typeof v === "string" ? v : "");
+  return (pick(msg.content) || pick(msg.reasoning_content) || pick(msg.reasoning) || "").trim();
+}
+
 function send(res, code, value) {
   if (typeof res.status === "function" && typeof res.json === "function") return res.status(code).json(value);
   res.statusCode = code;
@@ -164,9 +173,10 @@ async function handler(req, res) {
   // answers 404. Walk the configured chain instead of failing the feature.
   const candidates = modelCandidates(process.env);
   try {
-    let upstream = null, model = null, fallbackFrom = null;
+    let upstream = null, model = null, fallbackFrom = null, content = "";
     for (let i = 0; i < candidates.length; i++) {
       model = candidates[i];
+      content = "";
       upstream = await fetch(GATEWAY_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -180,12 +190,16 @@ async function handler(req, res) {
           max_tokens: 1800
         })
       });
-      if (upstream.ok || upstream.status !== 404 || i === candidates.length - 1) break;
+      const last = i === candidates.length - 1;
+      if (upstream.ok) {
+        content = extractContent(await upstream.json());
+        if (content || last) break;           // an empty answer counts as a miss: try the next model
+      } else if (upstream.status !== 404 || last) {
+        break;
+      }
       fallbackFrom = fallbackFrom || model;
     }
     if (!upstream.ok) return send(res, 502, { error: "gateway_http_error", status: upstream.status, model });
-    const json = await upstream.json();
-    const content = json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
     if (!content) return send(res, 502, { error: "empty_gateway_response", model });
     const result = normalizeAnalysis(parseJsonLoose(content), rawTranscript);
     return send(res, 200, Object.assign(result, { model, fallbackFrom: fallbackFrom || undefined, generatedAt: new Date().toISOString() }));
@@ -202,3 +216,4 @@ module.exports.verifyQuote = verifyQuote;
 module.exports.parseJsonLoose = parseJsonLoose;
 module.exports.DEFAULT_MODEL = DEFAULT_MODEL;
 module.exports.modelCandidates = modelCandidates;
+module.exports.extractContent = extractContent;
