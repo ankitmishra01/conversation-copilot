@@ -19,15 +19,22 @@
   <header class="product-header">
     <a class="brand-mark" href="?view=loop&demo=commitment-loop" aria-label="AM Consulting Group, Close the Loop">AM Consulting Group</a>
     <p class="concept-credit">A product by AM Consulting Group</p>
-    <nav class="mode-switcher" aria-label="Product modes" role="tablist">
-      <a role="tab" aria-controls="view-live" data-view-target="live" href="?view=live">Live copilot</a>
-      <a role="tab" aria-controls="view-coach" data-view-target="coach" href="?view=coach">Answer coach</a>
-      <a role="tab" aria-controls="view-loop" data-view-target="loop" href="?view=loop&demo=commitment-loop">Close the Loop</a>
-      <a role="tab" aria-controls="view-evals" data-view-target="evals" href="?view=evals">Eval Control Tower</a>
-    </nav>
+    <div class="mode-row">
+      <nav class="mode-switcher" aria-label="Product modes" role="tablist">
+        <a role="tab" aria-controls="view-live" data-view-target="live" href="?view=live">Live copilot</a>
+        <a role="tab" aria-controls="view-coach" data-view-target="coach" href="?view=coach">Answer coach</a>
+        <a role="tab" aria-controls="view-loop" data-view-target="loop" href="?view=loop&demo=commitment-loop">Close the Loop</a>
+        <a role="tab" aria-controls="view-evals" data-view-target="evals" href="?view=evals">Eval Control Tower</a>
+      </nav>
+      <a class="sibling-link" href="/vaada">Vaada: India consumer mode</a>
+    </div>
   </header>
 
   <main id="main">
+    <aside class="start-here" id="startHere" data-start-here aria-label="Start here" hidden>
+      <p><strong>New here?</strong> The two-minute verified replay follows one customer fact from the call to a learned rule and an associated outcome. No microphone or API key needed.</p>
+      <div class="start-here-actions"><a class="start-here-cta" href="?view=loop&demo=commitment-loop&present=1">Watch the verified replay</a><button type="button" class="text-button" data-start-here-dismiss>Dismiss</button></div>
+    </aside>
     <section class="product-view" id="view-live" role="tabpanel" data-view-panel="live" aria-labelledby="liveTitle">
       <header class="mode-hero compact-hero">
         <div>
@@ -49,7 +56,7 @@
           <div class="button-row"><button id="start">Start listening</button><button id="pauseMine" type="button" class="secondary-button listen-toggle">Pause my voice</button><button id="stop" class="secondary-button">Stop</button><button id="clear" class="secondary-button">Clear</button></div>
           <div class="button-row"><button id="compact" type="button" class="secondary-button">Compact</button><button id="overlay" type="button" class="secondary-button">Corner overlay</button><button id="popout" type="button" class="secondary-button">Mini window</button></div>
           <label class="check" title="Answer automatically when they pause"><input type="checkbox" id="autoAnswer" checked> <span>Auto-answer<span class="check-long"> when they pause</span></span></label>
-          <p class="small">Chrome supports microphone capture best. Allow microphone access when prompted; pasted transcripts remain available as a fallback.</p>
+          <p class="small">Needs a microphone: Chrome supports capture best. Allow microphone access when prompted, or paste a transcript into the panel to the right. Without a server key the copilot answers with a local fallback.</p>
         </div>
         <div class="panel transcript-panel">
           <div class="panel-head"><h2 id="transcriptTitle">Live transcript</h2><span class="utility-label">Source stream</span></div>
@@ -86,6 +93,7 @@
           <textarea id="answer" aria-labelledby="answerTitle" placeholder="Draft your answer here, then score it."></textarea>
           <div class="button-row"><button id="score">Score answer</button><button id="copy" class="secondary-button">Copy phrase</button></div>
           <p id="scoreText" aria-live="polite">Score will appear here.</p><ul id="feedback"></ul>
+          <p class="small">No microphone needed here. Scoring runs in this browser; the suggested answer fills from the Live copilot transcript or any text you paste there.</p>
         </div>
         <div class="panel context-panel">
           <div class="panel-head"><h2>Background context used</h2><span id="profileStatus" class="pill">Loading profile</span></div>
@@ -117,10 +125,12 @@
         <header class="loop-workspace-head">
           <div><p class="panel-index" id="loopAccountEyebrow">ACCOUNT / NORTHSTAR ANALYTICS</p><h2 id="loopAccountName">Renewal and expansion call</h2><p id="loopRunMeta">Verified snapshot · fictional data · browser-local decisions</p></div>
           <div class="loop-head-actions"><span class="loop-status" id="loopStatus" data-tone="idle" aria-live="polite">Ready for a transcript.</span><button type="button" class="secondary-button" id="loadLoopDemo">Replay verified demo</button><button type="button" class="secondary-button" id="analyzeLoop">Run live analysis</button><button type="button" id="saveLoopRun" disabled>Save to Control Tower</button><button type="button" class="text-button" id="deleteLoopRun" hidden>Delete saved run</button></div>
+          <p class="loop-head-note">The verified demo and the presentation run without a model call. Run live analysis sends the transcript to the model gateway and needs a server-side key; if the gateway is unavailable the verified snapshot stays on screen.</p>
         </header>
         <section class="presentation-guide" id="presentationGuide" aria-labelledby="presentationTitle" hidden>
           <p class="sr-only" id="presentationAnnouncement" aria-live="polite"></p>
           <div class="presentation-progress" aria-hidden="true"><span id="presentationProgress"></span></div>
+          <ol class="presentation-steps" id="presentationSteps" aria-label="Replay steps"></ol>
           <div>
             <p class="panel-index">VERIFIED REPLAY · <span id="presentationCounter">1 / 8</span></p>
             <h3 id="presentationTitle">Start with account context</h3>
@@ -130,7 +140,9 @@
             <button type="button" class="secondary-button" id="presentationBack">Back</button>
             <button type="button" id="presentationNext">Inspect source</button>
             <button type="button" class="text-button" id="presentationRestart">Restart</button>
+            <button type="button" class="text-button" id="presentationExit">Exit</button>
           </div>
+          <p class="presentation-hint" id="presentationHint">Keyboard: → next · ← back · Esc exit</p>
         </section>
         <div class="loop-workspace">
           <aside class="source-column" aria-labelledby="sourceTitle">
@@ -221,10 +233,11 @@
           <h1 id="evalDashboardTitle">The decisions are the dataset.</h1>
           <p>See where agents earn trust, where humans intervene, and whether learned guidance changes the next run.</p>
         </div>
-        <div class="eval-hero-status"><span class="demo-data-badge">Simulated interview dataset</span><p id="evalDashboardStatus" aria-live="polite">Loading evaluation history…</p></div>
+        <div class="eval-hero-status"><span class="demo-data-badge" id="evalDatasetBadge">Simulated interview dataset</span><p id="evalDashboardStatus" aria-live="polite">Loading evaluation history…</p></div>
       </header>
 
-      <section class="eval-dashboard-shell" aria-label="Evaluation analytics">
+      <section class="eval-dashboard-shell" id="evalDashboardShell" aria-label="Evaluation analytics" data-state="loading" aria-busy="true">
+        <div class="eval-state" id="evalDashboardState" role="status" hidden><p id="evalDashboardStateText"></p><button type="button" class="secondary-button" id="retryEvalDashboard">Try again</button></div>
         <div class="eval-toolbar">
           <label>Dataset<select id="evalDatasetFilter"><option value="all">All labelled data</option><option value="demo" selected>Demo only</option><option value="live">Saved live runs</option></select></label>
           <label>Artifact<select id="evalArtifactFilter"><option value="all">All artifacts</option><option value="follow-up">Follow-up email</option><option value="crm">CRM update</option></select></label>

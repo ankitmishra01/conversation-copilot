@@ -36,6 +36,16 @@ function run() {
     totalDecisions: 0, approvalRate: 0, averageEditRate: 0, averageDecisionSeconds: 0, completedActionRate: 0, verifiedEvidenceRate: 0
   });
 
+  assert.strictEqual(dashboard.datasetLabel("demo"), "Simulated interview dataset");
+  assert.strictEqual(dashboard.datasetLabel("live"), "Saved live runs only", "the live filter must not be labelled as simulated data");
+  assert.strictEqual(dashboard.datasetLabel("all"), "Demo and saved live data");
+  assert.strictEqual(dashboard.datasetLabel("bogus"), "Demo and saved live data");
+  assert.strictEqual(dashboard.dashboardState(null).state, "loading");
+  assert.strictEqual(dashboard.dashboardState({ ok: false }).state, "error");
+  assert.strictEqual(dashboard.dashboardState({ ok: true, body: { summary: { totalDecisions: 0 } } }).state, "empty");
+  assert.strictEqual(dashboard.dashboardState({ ok: true, body: data }).state, "ready");
+  assert.strictEqual(dashboard.dashboardState({ ok: true, body: data }).message, "3 durable decisions · filters applied");
+
   console.log("eval-dashboard.test.js OK");
 }
 
