@@ -182,6 +182,34 @@ async function run() {
     if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
   }
 
+  // A dropped connection or unreadable answer on the first model falls through as well.
+  process.env.AI_GATEWAY_LOOP_MODEL = "flaky/model";
+  process.env.AI_GATEWAY_FALLBACK_MODEL = "garbled/model";
+  const tried4 = [];
+  global.fetch = async (_url, options) => {
+    const m = JSON.parse(options.body).model; tried4.push(m);
+    if (m === "flaky/model") throw new Error("socket hang up");
+    if (m === "garbled/model") return { ok: true, json: async () => ({ choices: [{ message: { content: "Sure! Here is my analysis without any JSON." } }] }) };
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", commitments: [], blockers: [], expansionSignals: [], followUp: { subject: "", body: "" }, crm: { summary: "", nextStep: "", nextStepDate: null, stageSuggestion: "" } }) } }] }) };
+  };
+  try {
+    const fRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, fRes);
+    assert.strictEqual(fRes.statusCode, 200, "thrown and unreadable answers must not end the chain");
+    assert.deepStrictEqual(tried4, ["flaky/model", "garbled/model", "openai/gpt-6.1-sol-fast"]);
+    assert.strictEqual(JSON.parse(fRes.body).fallbackFrom, "flaky/model");
+    // When every candidate fails, the last failure is reported with its model.
+    global.fetch = async () => { throw new Error("socket hang up"); };
+    const allRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, allRes);
+    assert.strictEqual(allRes.statusCode, 502);
+    assert.deepStrictEqual(JSON.parse(allRes.body), { model: "openai/gpt-6.1-sol-fast", error: "gateway_request_failed" });
+  } finally {
+    global.fetch = realFetch;
+    delete process.env.AI_GATEWAY_FALLBACK_MODEL;
+    if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
+  }
+
   console.log("close-loop.test.js OK");
 }
 

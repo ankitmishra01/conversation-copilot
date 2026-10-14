@@ -188,48 +188,50 @@ async function handler(req, res) {
   const guard = await reserveGuard(token, body.reserveTest);
   if (!guard.ok) return send(res, 503, { error: "reserve_protected", reserve: guard });
 
-  // Gateway catalogs change; a configured model can disappear and the gateway
-  // answers 404. Walk the configured chain instead of failing the feature.
+  // Gateway catalogs change and free models are flaky. Try each configured
+  // model in turn; any failure (withdrawn model, capacity, dropped connection,
+  // empty or unreadable answer) moves to the next one. Only the last failure
+  // is reported, with the model it came from.
   const candidates = modelCandidates(process.env);
-  try {
-    let upstream = null, model = null, fallbackFrom = null, content = "";
-    for (let i = 0; i < candidates.length; i++) {
-      model = candidates[i];
-      content = "";
-      upstream = await fetch(GATEWAY_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: promptFor(body.scenario) },
-            { role: "user", content: `<transcript>\n${rawTranscript.trim()}\n</transcript>` }
-          ],
-          temperature: 0.1,
-          max_tokens: 1800
-        })
-      });
-      const last = i === candidates.length - 1;
-      if (upstream.ok) {
-        content = extractContent(await upstream.json());
-        if (content) {
-          let parsed = null;
-          try { parsed = parseJsonLoose(content); } catch (error) { parsed = null; }
-          if (parsed && looksLikeSchemaEcho(parsed)) content = "";   // schema echoed back: treat as a miss
-        }
-        if (content || last) break;           // an empty answer counts as a miss: try the next model
-      } else if (!RETRYABLE.has(upstream.status) || last) {
-        break;                                // auth, bad request, etc.: surface it
-      }
-      fallbackFrom = fallbackFrom || model;
+  let fallbackFrom = null, lastFailure = null;
+  for (let i = 0; i < candidates.length; i++) {
+    const model = candidates[i];
+    const outcome = await attempt(model, token, body, rawTranscript);
+    if (outcome.ok) {
+      return send(res, 200, Object.assign(outcome.result, { model, fallbackFrom: fallbackFrom || undefined, generatedAt: new Date().toISOString() }));
     }
-    if (!upstream.ok) return send(res, 502, { error: "gateway_http_error", status: upstream.status, model });
-    if (!content) return send(res, 502, { error: "empty_gateway_response", model });
-    const result = normalizeAnalysis(parseJsonLoose(content), rawTranscript);
-    return send(res, 200, Object.assign(result, { model, fallbackFrom: fallbackFrom || undefined, generatedAt: new Date().toISOString() }));
+    lastFailure = Object.assign({ model }, outcome.failure);
+    if (outcome.fatal) break;                  // auth or request errors: moving on would not help
+    fallbackFrom = fallbackFrom || model;
+  }
+  return send(res, 502, lastFailure || { error: "gateway_request_failed" });
+}
+
+// One model call. Returns { ok, result } or { ok: false, failure, fatal }.
+async function attempt(model, token, body, rawTranscript) {
+  try {
+    const upstream = await fetch(GATEWAY_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: promptFor(body.scenario) },
+          { role: "user", content: `<transcript>\n${rawTranscript.trim()}\n</transcript>` }
+        ],
+        temperature: 0.1,
+        max_tokens: 1800
+      })
+    });
+    if (!upstream.ok) return { ok: false, failure: { error: "gateway_http_error", status: upstream.status }, fatal: !RETRYABLE.has(upstream.status) };
+    const content = extractContent(await upstream.json());
+    if (!content) return { ok: false, failure: { error: "empty_gateway_response" } };
+    const parsed = parseJsonLoose(content);
+    if (looksLikeSchemaEcho(parsed)) return { ok: false, failure: { error: "schema_echo_response" } };
+    return { ok: true, result: normalizeAnalysis(parsed, rawTranscript) };
   } catch (error) {
     const reason = error && error.message === "no_json" ? "malformed_gateway_response" : "gateway_request_failed";
-    return send(res, 502, { error: reason });
+    return { ok: false, failure: { error: reason } };
   }
 }
 
@@ -243,3 +245,4 @@ module.exports.modelCandidates = modelCandidates;
 module.exports.extractContent = extractContent;
 module.exports.looksLikeSchemaEcho = looksLikeSchemaEcho;
 module.exports.RETRYABLE = RETRYABLE;
+module.exports.attempt = attempt;
