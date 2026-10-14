@@ -127,6 +127,29 @@ async function run() {
     if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
   }
 
+  assert.strictEqual(closeLoop.extractContent({ choices: [{ message: { content: [{ type: "text", text: "a" }, { type: "text", text: "b" }] } }] }), "ab", "array content parts are joined");
+  assert.strictEqual(closeLoop.extractContent({ choices: [{ message: { content: "", reasoning_content: " {\"x\":1} " } }] }), '{"x":1}', "reasoning field is used when content is empty");
+  assert.strictEqual(closeLoop.extractContent({}), "");
+
+  // An empty answer from the first model must fall through to the next one.
+  process.env.AI_GATEWAY_LOOP_MODEL = "quiet/model";
+  const tried2 = [];
+  global.fetch = async (_url, options) => {
+    const m = JSON.parse(options.body).model; tried2.push(m);
+    if (m === "quiet/model") return { ok: true, json: async () => ({ choices: [{ message: { content: "" } }] }) };
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", commitments: [], blockers: [], expansionSignals: [], followUp: { subject: "", body: "" }, crm: { summary: "", nextStep: "", nextStepDate: null, stageSuggestion: "" } }) } }] }) };
+  };
+  try {
+    const qRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, qRes);
+    assert.strictEqual(qRes.statusCode, 200);
+    assert.deepStrictEqual(tried2, ["quiet/model", "openai/gpt-6.1-sol-fast"]);
+    assert.strictEqual(JSON.parse(qRes.body).fallbackFrom, "quiet/model");
+  } finally {
+    global.fetch = realFetch;
+    if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
+  }
+
   console.log("close-loop.test.js OK");
 }
 
