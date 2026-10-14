@@ -128,6 +128,20 @@ async function run() {
     await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, r400);
     assert.strictEqual(r400.statusCode, 200, "a 400 from one model must not end the chain");
     assert.deepStrictEqual(tried400, ["gone/model", "openai/gpt-6.1-sol-fast"]);
+    // A transient 503 is retried once before moving on.
+    process.env.AI_GATEWAY_RETRY_DELAY_MS = "1";
+    const triedRetry = [];
+    global.fetch = async (_url, options) => {
+      const m = JSON.parse(options.body).model; triedRetry.push(m);
+      if (m === "gone/model" && triedRetry.filter((x) => x === m).length === 1) return { ok: false, status: 503, json: async () => ({}) };
+      return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", commitments: [], blockers: [], expansionSignals: [], followUp: { subject: "", body: "" }, crm: { summary: "", nextStep: "", nextStepDate: null, stageSuggestion: "" } }) } }] }) };
+    };
+    const rRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, rRes);
+    assert.strictEqual(rRes.statusCode, 200);
+    assert.deepStrictEqual(triedRetry, ["gone/model", "gone/model"], "the busy model is retried once and then answers");
+    assert.strictEqual(JSON.parse(rRes.body).fallbackFrom, undefined, "a successful retry is not a fallback");
+    assert.strictEqual(closeLoop.isTransient({ error: "gateway_http_error", status: 400 }), false);
     // Capacity errors (503) on the first model fall through; a 401 does not.
     const tried503 = [];
     global.fetch = async (_url, options) => {
