@@ -152,7 +152,7 @@ async function run() {
     const capRes = fakeRes();
     await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, capRes);
     assert.strictEqual(capRes.statusCode, 200, "a 503 on the first model must fall through");
-    assert.deepStrictEqual(tried503, ["gone/model", "openai/gpt-6.1-sol-fast"]);
+    assert.deepStrictEqual(tried503, ["gone/model", "gone/model", "openai/gpt-6.1-sol-fast"], "a 503 is retried once, then the chain moves on");
     global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
     const errRes = fakeRes();
     await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, errRes);
@@ -222,7 +222,7 @@ async function run() {
     const fRes = fakeRes();
     await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, fRes);
     assert.strictEqual(fRes.statusCode, 200, "thrown and unreadable answers must not end the chain");
-    assert.deepStrictEqual(tried4, ["flaky/model", "garbled/model", "openai/gpt-6.1-sol-fast"]);
+    assert.deepStrictEqual(tried4, ["flaky/model", "flaky/model", "garbled/model", "openai/gpt-6.1-sol-fast"], "a dropped connection is retried once; an unreadable answer is not");
     assert.strictEqual(JSON.parse(fRes.body).fallbackFrom, "flaky/model");
     // When every candidate fails, the last failure is reported with its model.
     global.fetch = async () => { throw new Error("socket hang up"); };
