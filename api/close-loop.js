@@ -143,9 +143,11 @@ function extractContent(json) {
   return (pick(msg.content) || pick(msg.reasoning_content) || pick(msg.reasoning) || "").trim();
 }
 
-// Gateway statuses worth moving to the next candidate for: withdrawn model
-// (404), rate limit (429), and provider capacity or upstream failures (5xx).
-const RETRYABLE = new Set([404, 429, 500, 502, 503, 504]);
+// Only authentication and credit problems stop the chain: they will not
+// change with a different model. Everything else (a model rejecting the
+// request shape with 400, 404 withdrawn, 429 rate limit, 5xx capacity) moves
+// on to the next candidate.
+const FATAL = new Set([401, 402, 403]);
 
 // Weak models sometimes return the schema itself ("summary": "string") instead
 // of filling it. Treat that as no answer so the next candidate gets a turn.
@@ -228,7 +230,7 @@ async function attempt(model, token, body, rawTranscript) {
     if (!upstream.ok) {
       let detail = "";
       try { const e = await upstream.json(); detail = String((e && e.error && (e.error.message || e.error.type)) || e.message || "").slice(0, 160); } catch (error) { detail = ""; }
-      return { ok: false, failure: { error: "gateway_http_error", status: upstream.status, detail: detail || undefined }, fatal: !RETRYABLE.has(upstream.status) };
+      return { ok: false, failure: { error: "gateway_http_error", status: upstream.status, detail: detail || undefined }, fatal: FATAL.has(upstream.status) };
     }
     const content = extractContent(await upstream.json());
     if (!content) return { ok: false, failure: { error: "empty_gateway_response" } };
@@ -250,5 +252,5 @@ module.exports.DEFAULT_MODEL = DEFAULT_MODEL;
 module.exports.modelCandidates = modelCandidates;
 module.exports.extractContent = extractContent;
 module.exports.looksLikeSchemaEcho = looksLikeSchemaEcho;
-module.exports.RETRYABLE = RETRYABLE;
+module.exports.FATAL = FATAL;
 module.exports.attempt = attempt;

@@ -117,6 +117,17 @@ async function run() {
     assert.deepStrictEqual(tried, ["gone/model", "openai/gpt-6.1-sol-fast"]);
     assert.strictEqual(fb.model, "openai/gpt-6.1-sol-fast");
     assert.strictEqual(fb.fallbackFrom, "gone/model");
+    // A 400 from a model that rejects the request shape also falls through.
+    const tried400 = [];
+    global.fetch = async (_url, options) => {
+      const m = JSON.parse(options.body).model; tried400.push(m);
+      if (m === "gone/model") return { ok: false, status: 400, json: async () => ({ error: { message: "unsupported parameter" } }) };
+      return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", commitments: [], blockers: [], expansionSignals: [], followUp: { subject: "", body: "" }, crm: { summary: "", nextStep: "", nextStepDate: null, stageSuggestion: "" } }) } }] }) };
+    };
+    const r400 = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, r400);
+    assert.strictEqual(r400.statusCode, 200, "a 400 from one model must not end the chain");
+    assert.deepStrictEqual(tried400, ["gone/model", "openai/gpt-6.1-sol-fast"]);
     // Capacity errors (503) on the first model fall through; a 401 does not.
     const tried503 = [];
     global.fetch = async (_url, options) => {
