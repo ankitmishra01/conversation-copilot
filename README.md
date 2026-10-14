@@ -10,6 +10,14 @@ This repository is a product of AM Consulting Group.
 
 ![Close the Loop workflow showing source evidence, a human-reviewed action, and the resulting learned guidance](docs/assets/close-the-loop-workflow.png)
 
+## Vaada: India consumer mode
+
+[**Open Vaada**](https://conversation-copilot-three.vercel.app/vaada) turns the same evidence-first engine toward Indian consumers. A Hinglish support call about a failed UPI payment becomes a dated list of promises with their exact source quotes, a check against the RBI Turn Around Time rules (circular RBI/2019-20/67: reversal by T + 1 for transfers, T + 5 for merchant payments, ₹100 a day after that, credited without a claim), and a written complaint drafted in English or Hindi with the RBI Integrated Ombudsman route 30 days out.
+
+- **Verified replay:** a fictional four-step call, deterministic, with every quote checked against the transcript (`test/vaada.test.js`).
+- **Try your own case:** enter a transaction and paste what the company promised; promise extraction, the deadline, compensation and both drafts run entirely in the browser.
+- **Code:** `vaada.html`, `vaada.js`, `data/vaada-demo.json`.
+
 ## Product tour
 
 | Surface | What to look for | Direct link |

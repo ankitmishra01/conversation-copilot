@@ -14,4 +14,5 @@ Promise.resolve()
   .then(() => require("./supabase-schema.test").run())
   .then(() => require("./view-controller.test").run())
   .then(() => require("./close-loop-ui.test").run())
+  .then(() => require("./vaada.test").run())
   .catch((e) => { console.error(e); process.exit(1); });
