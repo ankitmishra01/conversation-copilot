@@ -150,6 +150,28 @@ async function run() {
     if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
   }
 
+  assert.strictEqual(closeLoop.looksLikeSchemaEcho({ summary: "string", commitments: [{ owner: "string", action: "string", dueDate: "string|null" }], followUp: { subject: "string", body: "string" } }), true, "schema echo detected");
+  assert.strictEqual(closeLoop.looksLikeSchemaEcho({ summary: "Security follow-up.", commitments: [{ owner: "Maya", action: "Send packet", dueDate: null }] }), false, "real answers pass");
+
+  // A schema echo from the first model must fall through too.
+  process.env.AI_GATEWAY_LOOP_MODEL = "echo/model";
+  const tried3 = [];
+  global.fetch = async (_url, options) => {
+    const m = JSON.parse(options.body).model; tried3.push(m);
+    if (m === "echo/model") return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "string", commitments: [{ owner: "string", action: "string" }], followUp: { subject: "string", body: "string" }, crm: { summary: "string" } }) } }] }) };
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", commitments: [], blockers: [], expansionSignals: [], followUp: { subject: "", body: "" }, crm: { summary: "", nextStep: "", nextStepDate: null, stageSuggestion: "" } }) } }] }) };
+  };
+  try {
+    const eRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, eRes);
+    assert.strictEqual(eRes.statusCode, 200);
+    assert.deepStrictEqual(tried3, ["echo/model", "openai/gpt-6.1-sol-fast"]);
+    assert.strictEqual(JSON.parse(eRes.body).summary, "ok");
+  } finally {
+    global.fetch = realFetch;
+    if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
+  }
+
   console.log("close-loop.test.js OK");
 }
 

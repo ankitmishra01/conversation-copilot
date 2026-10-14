@@ -141,6 +141,21 @@ function extractContent(json) {
   return (pick(msg.content) || pick(msg.reasoning_content) || pick(msg.reasoning) || "").trim();
 }
 
+// Weak models sometimes return the schema itself ("summary": "string") instead
+// of filling it. Treat that as no answer so the next candidate gets a turn.
+const PLACEHOLDERS = new Set(["string", "string|null", "number", "boolean", "null"]);
+function looksLikeSchemaEcho(obj) {
+  const leaves = [];
+  (function walk(v) {
+    if (typeof v === "string") leaves.push(v.trim().toLowerCase());
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  })(obj);
+  if (!leaves.length) return true;
+  const hits = leaves.filter((l) => PLACEHOLDERS.has(l)).length;
+  return hits >= Math.max(2, Math.ceil(leaves.length / 2));
+}
+
 function send(res, code, value) {
   if (typeof res.status === "function" && typeof res.json === "function") return res.status(code).json(value);
   res.statusCode = code;
@@ -193,6 +208,11 @@ async function handler(req, res) {
       const last = i === candidates.length - 1;
       if (upstream.ok) {
         content = extractContent(await upstream.json());
+        if (content) {
+          let parsed = null;
+          try { parsed = parseJsonLoose(content); } catch (error) { parsed = null; }
+          if (parsed && looksLikeSchemaEcho(parsed)) content = "";   // schema echoed back: treat as a miss
+        }
         if (content || last) break;           // an empty answer counts as a miss: try the next model
       } else if (upstream.status !== 404 || last) {
         break;
@@ -217,3 +237,4 @@ module.exports.parseJsonLoose = parseJsonLoose;
 module.exports.DEFAULT_MODEL = DEFAULT_MODEL;
 module.exports.modelCandidates = modelCandidates;
 module.exports.extractContent = extractContent;
+module.exports.looksLikeSchemaEcho = looksLikeSchemaEcho;
