@@ -141,6 +141,10 @@ function extractContent(json) {
   return (pick(msg.content) || pick(msg.reasoning_content) || pick(msg.reasoning) || "").trim();
 }
 
+// Gateway statuses worth moving to the next candidate for: withdrawn model
+// (404), rate limit (429), and provider capacity or upstream failures (5xx).
+const RETRYABLE = new Set([404, 429, 500, 502, 503, 504]);
+
 // Weak models sometimes return the schema itself ("summary": "string") instead
 // of filling it. Treat that as no answer so the next candidate gets a turn.
 const PLACEHOLDERS = new Set(["string", "string|null", "number", "boolean", "null"]);
@@ -214,8 +218,8 @@ async function handler(req, res) {
           if (parsed && looksLikeSchemaEcho(parsed)) content = "";   // schema echoed back: treat as a miss
         }
         if (content || last) break;           // an empty answer counts as a miss: try the next model
-      } else if (upstream.status !== 404 || last) {
-        break;
+      } else if (!RETRYABLE.has(upstream.status) || last) {
+        break;                                // auth, bad request, etc.: surface it
       }
       fallbackFrom = fallbackFrom || model;
     }
@@ -238,3 +242,4 @@ module.exports.DEFAULT_MODEL = DEFAULT_MODEL;
 module.exports.modelCandidates = modelCandidates;
 module.exports.extractContent = extractContent;
 module.exports.looksLikeSchemaEcho = looksLikeSchemaEcho;
+module.exports.RETRYABLE = RETRYABLE;
