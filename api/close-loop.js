@@ -148,6 +148,11 @@ function extractContent(json) {
 // request shape with 400, 404 withdrawn, 429 rate limit, 5xx capacity) moves
 // on to the next candidate.
 const FATAL = new Set([401, 402, 403]);
+const RETRY_DELAY_MS = Number(process.env.AI_GATEWAY_RETRY_DELAY_MS || 1500);
+function isTransient(failure) {
+  return !!failure && (failure.error === "gateway_request_failed" ||
+    (failure.error === "gateway_http_error" && [429, 500, 502, 503, 504].includes(failure.status)));
+}
 
 // Weak models sometimes return the schema itself ("summary": "string") instead
 // of filling it. Treat that as no answer so the next candidate gets a turn.
@@ -200,7 +205,13 @@ async function handler(req, res) {
   let fallbackFrom = null, lastFailure = null;
   for (let i = 0; i < candidates.length; i++) {
     const model = candidates[i];
-    const outcome = await attempt(model, token, body, rawTranscript);
+    let outcome = await attempt(model, token, body, rawTranscript);
+    // Capacity and dropped-connection failures are transient on free models:
+    // one short pause and a second try roughly doubles the hit rate for free.
+    if (!outcome.ok && isTransient(outcome.failure)) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      outcome = await attempt(model, token, body, rawTranscript);
+    }
     if (outcome.ok) {
       return send(res, 200, Object.assign(outcome.result, { model, fallbackFrom: fallbackFrom || undefined, generatedAt: new Date().toISOString() }));
     }
@@ -253,4 +264,5 @@ module.exports.modelCandidates = modelCandidates;
 module.exports.extractContent = extractContent;
 module.exports.looksLikeSchemaEcho = looksLikeSchemaEcho;
 module.exports.FATAL = FATAL;
+module.exports.isTransient = isTransient;
 module.exports.attempt = attempt;
