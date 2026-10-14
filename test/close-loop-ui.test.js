@@ -100,7 +100,20 @@ function run() {
   assert.strictEqual(ui.qualifiesForDemoRule(correction, originalDraft, correctedDraft, { decision: "rejected", edited: true }, true), false, "rejected work must not create a learned rule");
   assert.strictEqual(ui.qualifiesForDemoRule(correction, originalDraft, correctedDraft, { decision: "approved", edited: true }, false), false, "live runs must not inherit a bundled demo rule");
 
+  assert.strictEqual(ui.PRESENTATION_STEPS.length, 8, "the verified replay is an eight-step story");
+  assert.ok(ui.PRESENTATION_STEPS.every((step) => step.title && step.action && step.stage), "every replay step needs a title, an action label, and a loop stage");
+  assert.ok(/copilot key/.test(ui.describeAnalysisError("key_required")), "a missing key must be explained in plain language");
+  assert.ok(/gateway/.test(ui.describeAnalysisError("gateway_http_error")));
+  assert.ok(/could not be reached/.test(ui.describeAnalysisError("Failed to fetch")), "network failures must not surface raw browser errors");
+  assert.strictEqual(ui.describeAnalysisError("something_else"), "Live analysis failed (something_else).");
+  assert.strictEqual(ui.describeAnalysisError(""), "Live analysis failed.");
+
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(html.includes('<a class="sibling-link" href="/vaada">Vaada: India consumer mode</a>'), "the header must link to the Vaada sibling page");
+  assert.ok(!/role="tablist"[\s\S]*?href="\/vaada"[\s\S]*?<\/nav>/.test(html), "the Vaada link must sit beside the mode tabs, not inside the tablist");
+  assert.ok(html.includes("data-start-here") && html.includes("present=1"), "first-time visitors need a start-here path into the verified replay");
+  assert.ok(html.includes('id="presentationSteps"') && html.includes('id="presentationExit"'), "the replay needs a step list and an explicit exit");
+  assert.ok(html.includes('id="evalDatasetBadge"') && html.includes('id="evalDashboardState"') && html.includes('id="retryEvalDashboard"'), "the Control Tower must label the dataset and expose loading, empty, and error states");
   assert.ok(html.includes("view-controller.js"), "the page must load the product mode controller");
   assert.ok(html.includes('data-view-target="live"'), "the shell must expose Live copilot as a real mode");
   assert.ok(html.includes('data-view-target="coach"'), "the shell must expose Answer coach as a real mode");

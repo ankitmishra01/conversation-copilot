@@ -142,6 +142,26 @@
     };
   }
 
+  var ANALYSIS_ERRORS = {
+    key_required: "Live analysis is locked on this deployment: it needs a copilot key. The verified replay works without one.",
+    copilot_expired: "The live analysis window for this deployment has closed. The verified replay still works.",
+    missing_gateway_auth: "The model gateway is not configured on this deployment, so live analysis is unavailable.",
+    reserve_protected: "Live analysis is paused to protect the model credit reserve.",
+    gateway_http_error: "The model gateway rejected the request, so live analysis is unavailable right now.",
+    gateway_request_failed: "The model gateway could not be reached.",
+    malformed_gateway_response: "The model returned an unreadable answer.",
+    empty_gateway_response: "The model returned an empty answer.",
+    transcript_too_long: "The transcript is too long for live analysis. Trim it and try again.",
+    transcript_required: "Add a transcript or load the verified demo first."
+  };
+
+  function describeAnalysisError(code) {
+    var key = String(code || "").trim();
+    if (ANALYSIS_ERRORS[key]) return ANALYSIS_ERRORS[key];
+    if (/^failed to fetch$/i.test(key) || /network/i.test(key)) return "The analysis service could not be reached.";
+    return "Live analysis failed" + (key ? " (" + key + ")" : "") + ".";
+  }
+
   function qualifiesForDemoRule(correction, original, finalText, event, verifiedDemo) {
     var removal = String(correction && correction.remove || "");
     return verifiedDemo === true && event && event.decision === "approved" && event.edited === true &&
@@ -260,6 +280,31 @@
       return true;
     }
 
+    function renderStepList(current) {
+      var list = el("presentationSteps");
+      if (!list) return;
+      if (!list.children.length) {
+        PRESENTATION_STEPS.forEach(function (definition, index) {
+          var item = document.createElement("li");
+          var number = document.createElement("span");
+          number.textContent = String(index + 1);
+          var label = document.createElement("small");
+          label.textContent = definition.title;
+          item.append(number, label);
+          list.appendChild(item);
+        });
+      }
+      Array.prototype.slice.call(list.children).forEach(function (item, index) {
+        item.classList.toggle("is-done", index < current);
+        item.classList.toggle("is-current", index === current);
+        if (index === current) item.setAttribute("aria-current", "step");
+        else item.removeAttribute("aria-current");
+        if (index === current && typeof item.scrollIntoView === "function") {
+          try { item.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (error) { /* older browsers */ }
+        }
+      });
+    }
+
     function renderPresentationStep() {
       var step = presentationStep(guidedStep);
       el("presentationGuide").hidden = false;
@@ -268,6 +313,7 @@
       el("presentationNext").textContent = step.action;
       el("presentationBack").disabled = step.index === 0;
       el("presentationProgress").style.width = (((step.index + 1) / step.total) * 100) + "%";
+      renderStepList(step.index);
       var copy = [
         "Follow one customer fact through action, evaluation, the next agent run, and an associated outcome.",
         "The claim resolves to the exact words in the call before any action is trusted.",
@@ -303,6 +349,21 @@
       el("presentationGuide").hidden = true;
       el("learningReplay").hidden = true;
       ["learningRulePanel", "nextRunPanel", "outcomePanel"].forEach(function (id) { el(id).hidden = true; });
+    }
+
+    function leavePresentation() {
+      if (!presentationActive) return false;
+      exitPresentation();
+      setStatus("Presentation closed. The verified demo and your local decisions stay loaded.", "idle");
+      var trigger = el("startPresentation");
+      if (trigger && typeof trigger.focus === "function") trigger.focus({ preventScroll: true });
+      return true;
+    }
+
+    function isEditableTarget(target) {
+      if (!target || !target.tagName) return false;
+      var tag = target.tagName.toLowerCase();
+      return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable === true;
     }
 
     function advancePresentation() {
@@ -745,7 +806,7 @@
           setStatus("Live analysis was unavailable; showing the verified bundled snapshot.", "ready");
           return;
         }
-        setStatus("Analysis failed: " + String(error.message || error) + ". Your transcript remains in this browser.", "error");
+        setStatus(describeAnalysisError(error && error.message) + " Your transcript remains in this browser.", "error");
       }).finally(function () { el("analyzeLoop").disabled = false; });
     }
 
@@ -786,6 +847,25 @@
       renderPresentationStep();
     });
     el("presentationRestart").addEventListener("click", startPresentation);
+    el("presentationExit").addEventListener("click", leavePresentation);
+    document.addEventListener("keydown", function (event) {
+      if (!presentationActive || event.defaultPrevented) return;
+      if (event.key === "Escape") {
+        if (isEditableTarget(event.target) && event.target.id !== "loopTranscript") return;
+        event.preventDefault();
+        leavePresentation();
+        return;
+      }
+      if (isEditableTarget(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        advancePresentation();
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        guidedStep = Math.max(0, guidedStep - 1);
+        renderPresentationStep();
+      }
+    });
     el("exportLedger").addEventListener("click", function () {
       var blob = new Blob([ledger.exportJson()], { type: "application/json" });
       var url = URL.createObjectURL(blob);
@@ -806,7 +886,9 @@
     renderMetrics();
     retryPendingEvaluations();
     var launchParams = new URLSearchParams(root.location.search || "");
-    if (launchParams.get("demo") === "commitment-loop" || launchParams.get("view") === "loop") {
+    if (launchParams.get("present") === "1" && (launchParams.get("view") === "loop" || launchParams.get("demo") === "commitment-loop")) {
+      startPresentation();
+    } else if (launchParams.get("demo") === "commitment-loop" || launchParams.get("view") === "loop") {
       loadDemo(false, false);
     }
     root.addEventListener("productviewchange", function (event) {
@@ -831,6 +913,8 @@
     presentationStep: presentationStep,
     presentationVisibility: presentationVisibility,
     qualifiesForDemoRule: qualifiesForDemoRule,
+    describeAnalysisError: describeAnalysisError,
+    PRESENTATION_STEPS: PRESENTATION_STEPS,
     artifactText: artifactText,
     sandboxRecord: sandboxRecord,
     prepareDemoAnalysis: prepareDemoAnalysis,

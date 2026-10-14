@@ -24,6 +24,12 @@ function run() {
     title: "Answer coach"
   });
 
+  assert.strictEqual(views.startHereVisible("live", false), true, "first-time visitors on the live view must see the start-here path");
+  assert.strictEqual(views.startHereVisible("evals", false), true);
+  assert.strictEqual(views.startHereVisible("loop", false), false, "the loop view already exposes the replay, so the strip must hide");
+  assert.strictEqual(views.startHereVisible("live", true), false, "a dismissed strip must stay dismissed");
+  assert.ok(typeof views.START_HERE_KEY === "string" && views.START_HERE_KEY.length > 0);
+
   console.log("view-controller.test.js OK");
 }
 

@@ -18,6 +18,21 @@
     };
   }
 
+  var DATASET_LABELS = { all: "Demo and saved live data", demo: "Simulated interview dataset", live: "Saved live runs only" };
+  function datasetLabel(dataset) { return DATASET_LABELS[dataset] || DATASET_LABELS.all; }
+
+  // Resolves the shell state for a fetch result: loading | ready | empty | error.
+  function dashboardState(result) {
+    if (!result) return { state: "loading", message: "Loading evaluation history…" };
+    if (result.ok === false || !result.body || typeof result.body !== "object") {
+      return { state: "error", message: "The Control Tower could not be reached. Decisions you make in Close the Loop stay in this browser until the next sync." };
+    }
+    var summary = result.body.summary || {};
+    var total = Number(summary.totalDecisions) || 0;
+    if (!total) return { state: "empty", message: "No decisions match this filter yet. Replay the verified demo in Close the Loop, or save a live run, and they will appear here." };
+    return { state: "ready", message: total + " durable decisions · filters applied" };
+  }
+
   function apiHeaders() {
     var headers = { "Content-Type": "application/json" };
     try {
@@ -89,25 +104,47 @@
       }
     }
 
+    function applyState(result) {
+      var resolved = dashboardState(result);
+      var shell = el("evalDashboardShell");
+      if (shell) {
+        shell.dataset.state = resolved.state;
+        shell.setAttribute("aria-busy", resolved.state === "loading" ? "true" : "false");
+      }
+      var banner = el("evalDashboardState");
+      if (banner) {
+        banner.hidden = resolved.state === "ready" || resolved.state === "loading";
+        banner.dataset.tone = resolved.state;
+        text("evalDashboardStateText", resolved.message);
+        var retry = el("retryEvalDashboard");
+        if (retry) retry.hidden = resolved.state !== "error";
+      }
+      text("evalDashboardStatus", resolved.state === "ready" ? resolved.message : resolved.state === "loading" ? resolved.message : resolved.state === "empty" ? "0 durable decisions in this filter" : "Control Tower unavailable");
+      return resolved;
+    }
+
     function load() {
       var dataset = el("evalDatasetFilter").value;
       var artifact = el("evalArtifactFilter").value;
-      text("evalDashboardStatus", "Loading evaluation history…");
+      text("evalDatasetBadge", datasetLabel(dataset));
+      applyState(null);
       return fetch("/api/eval-dashboard?dataset=" + encodeURIComponent(dataset) + "&artifact=" + encodeURIComponent(artifact), { headers: apiHeaders(), cache: "no-store" })
         .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
         .then(function (result) {
           if (!result.ok) throw new Error(result.body.error || "dashboard_unavailable");
           render(result.body);
-          text("evalDashboardStatus", result.body.summary.totalDecisions + " durable decisions · filters applied");
+          applyState(result);
         }).catch(function () {
           render(null);
-          text("evalDashboardStatus", "Control Tower unavailable. Existing local evaluations are unchanged.");
+          applyState({ ok: false });
         });
     }
 
     el("evalDatasetFilter").addEventListener("change", load);
     el("evalArtifactFilter").addEventListener("change", load);
     el("refreshEvalDashboard").addEventListener("click", load);
+    if (el("retryEvalDashboard")) el("retryEvalDashboard").addEventListener("click", load);
+    text("evalDatasetBadge", datasetLabel(el("evalDatasetFilter").value));
     root.addEventListener("productviewchange", function (event) { if (event.detail && event.detail.view === "evals") load(); });
     if (new URLSearchParams(root.location.search || "").get("view") === "evals") load();
   }
@@ -117,5 +154,5 @@
     else init();
   }
 
-  return { formatPercent: formatPercent, formatSeconds: formatSeconds, normalizeDashboard: normalizeDashboard, init: init };
+  return { formatPercent: formatPercent, formatSeconds: formatSeconds, normalizeDashboard: normalizeDashboard, datasetLabel: datasetLabel, dashboardState: dashboardState, init: init };
 }));
