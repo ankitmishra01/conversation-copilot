@@ -167,6 +167,9 @@ function run() {
   assert.ok(demo.learningLoop.nextRun.baselineFollowUp.body.toLowerCase().includes("analytics"), "the baseline must visibly repeat the old behavior");
   assert.ok(!demo.learningLoop.nextRun.learnedFollowUp.body.toLowerCase().includes("analytics"), "the learned draft must visibly apply the rule");
 
+  assert.ok(/no paid gateway credits/.test(ui.describeAnalysisError("gateway_http_error", { status: 403, detail: "Free tier users do not have access to this model.", tried: 3 })), "free-tier 403 gets a plain explanation");
+  assert.ok(/Tried 3 models/.test(ui.describeAnalysisError("gateway_request_failed", { tried: 3 })));
+  assert.strictEqual(ui.describeAnalysisError("empty_gateway_response"), "The model returned an empty answer.", "single-argument form unchanged");
   console.log("close-loop-ui.test.js OK");
 }
 
