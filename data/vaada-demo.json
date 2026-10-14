@@ -1,0 +1,133 @@
+{
+  "demoVersion": "2026-10-14",
+  "fictional": true,
+  "asOf": "2026-10-15",
+  "consumer": {
+    "name": "Priya Sharma",
+    "city": "Pune",
+    "nameHi": "प्रिया शर्मा"
+  },
+  "company": {
+    "name": "Demo Bank",
+    "sector": "Bank",
+    "agent": "Rohit"
+  },
+  "call": {
+    "date": "2026-10-13",
+    "time": "12:40",
+    "language": "Hinglish (Hindi and English)"
+  },
+  "transaction": {
+    "type": "UPI transfer (person to person)",
+    "date": "2026-10-10",
+    "amount": 4500,
+    "utr": "628412937105",
+    "complaintNumber": "SR4471902"
+  },
+  "transcript": [
+    {
+      "id": "t1",
+      "speaker": "Rohit (Demo Bank)",
+      "text": "Namaste, Demo Bank customer care, main Rohit bol raha hoon. Main aapki kaise help kar sakta hoon?"
+    },
+    {
+      "id": "t2",
+      "speaker": "Priya",
+      "text": "Hi Rohit. 10 October ko maine apne landlord ko ₹4,500 UPI kiye the. Paisa mere account se kat gaya, but unke account mein nahi aaya."
+    },
+    {
+      "id": "t3",
+      "speaker": "Rohit (Demo Bank)",
+      "text": "Ek minute ma'am, main check karta hoon. Haan, transaction pending dikha raha hai, UTR 628412937105."
+    },
+    {
+      "id": "t4",
+      "speaker": "Priya",
+      "text": "Teen din ho gaye hain. Mujhe rent ki late fee lag rahi hai."
+    },
+    {
+      "id": "t5",
+      "speaker": "Rohit (Demo Bank)",
+      "text": "Sorry ma'am. Maine complaint raise kar di hai, complaint number SR4471902."
+    },
+    {
+      "id": "t6",
+      "speaker": "Rohit (Demo Bank)",
+      "text": "Aapka paisa 24 ghante mein reverse ho jayega."
+    },
+    {
+      "id": "t7",
+      "speaker": "Priya",
+      "text": "Aur agar nahi hua toh?"
+    },
+    {
+      "id": "t8",
+      "speaker": "Rohit (Demo Bank)",
+      "text": "Toh hamari team aapko 48 ghante mein callback karegi."
+    },
+    {
+      "id": "t9",
+      "speaker": "Priya",
+      "text": "Theek hai. Kya mujhe koi compensation milega?"
+    },
+    {
+      "id": "t10",
+      "speaker": "Rohit (Demo Bank)",
+      "text": "Ma'am, uske liye aapko branch visit karni padegi."
+    }
+  ],
+  "promises": [
+    {
+      "id": "p1",
+      "owner": "Demo Bank",
+      "quote": "Aapka paisa 24 ghante mein reverse ho jayega.",
+      "sourceLine": "t6",
+      "meaning": "Your money will be reversed within 24 hours.",
+      "dueHours": 24,
+      "quoteHi": "आपका पैसा 24 घंटे में रिवर्स हो जाएगा।"
+    },
+    {
+      "id": "p2",
+      "owner": "Demo Bank",
+      "quote": "Toh hamari team aapko 48 ghante mein callback karegi.",
+      "sourceLine": "t8",
+      "meaning": "If it isn't, our team will call you back within 48 hours.",
+      "dueHours": 48
+    }
+  ],
+  "records": [
+    {
+      "id": "r1",
+      "label": "Complaint number",
+      "value": "SR4471902",
+      "sourceLine": "t5"
+    },
+    {
+      "id": "r2",
+      "label": "UTR",
+      "value": "628412937105",
+      "sourceLine": "t3"
+    }
+  ],
+  "rule": {
+    "id": "rbi-tat-upi-p2p",
+    "name": "RBI Turn Around Time for failed transactions",
+    "circular": "RBI/2019-20/67, 20 September 2019",
+    "url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693",
+    "row": "UPI: account debited but the beneficiary account is not credited (transfer of funds)",
+    "reversalDays": 1,
+    "compensationPerDay": 100,
+    "suoMoto": "Wherever financial compensation is involved, the same shall be effected to the customer's account suo moto, without waiting for a complaint or claim from the customer."
+  },
+  "conflict": {
+    "quote": "Ma'am, uske liye aapko branch visit karni padegi.",
+    "sourceLine": "t10",
+    "meaning": "For that you'll have to visit a branch.",
+    "why": "The RBI circular says compensation must be credited suo moto, without a complaint or claim. A branch visit is not required."
+  },
+  "escalation": {
+    "ombudsmanUrl": "https://cms.rbi.org.in/",
+    "waitDays": 30,
+    "note": "The RBI Integrated Ombudsman Scheme, 2021 accepts a complaint once the bank has rejected a written complaint or not replied within 30 days."
+  }
+}
