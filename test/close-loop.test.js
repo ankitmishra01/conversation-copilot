@@ -96,6 +96,37 @@ async function run() {
     global.fetch = realFetch;
   }
 
+  assert.deepStrictEqual(closeLoop.modelCandidates({ AI_GATEWAY_LOOP_MODEL: " gone/model ", AI_GATEWAY_FALLBACK_MODEL: "openai/gpt-6.1-sol-fast" }), ["gone/model", "openai/gpt-6.1-sol-fast"], "candidates are trimmed and de-duplicated");
+  assert.deepStrictEqual(closeLoop.modelCandidates({}), ["openai/gpt-6.1-sol-fast"]);
+
+  // A withdrawn model (gateway 404) must fall through to the next candidate.
+  const prevLoop = process.env.AI_GATEWAY_LOOP_MODEL;
+  process.env.AI_GATEWAY_LOOP_MODEL = "gone/model";
+  const tried = [];
+  global.fetch = async (_url, options) => {
+    const m = JSON.parse(options.body).model; tried.push(m);
+    if (m === "gone/model") return { ok: false, status: 404, json: async () => ({ error: { message: "model not found" } }) };
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", commitments: [], blockers: [], expansionSignals: [], followUp: { subject: "", body: "" }, crm: { summary: "", nextStep: "", nextStepDate: null, stageSuggestion: "" } }) } }] }) };
+  };
+  try {
+    const fbRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, fbRes);
+    assert.strictEqual(fbRes.statusCode, 200, "a 404 on the first model must not fail the request");
+    const fb = JSON.parse(fbRes.body);
+    assert.deepStrictEqual(tried, ["gone/model", "openai/gpt-6.1-sol-fast"]);
+    assert.strictEqual(fb.model, "openai/gpt-6.1-sol-fast");
+    assert.strictEqual(fb.fallbackFrom, "gone/model");
+    // Non-404 failures still surface, with the model that failed.
+    global.fetch = async () => ({ ok: false, status: 429, json: async () => ({}) });
+    const errRes = fakeRes();
+    await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, errRes);
+    assert.strictEqual(errRes.statusCode, 502);
+    assert.strictEqual(JSON.parse(errRes.body).status, 429);
+  } finally {
+    global.fetch = realFetch;
+    if (prevLoop === undefined) delete process.env.AI_GATEWAY_LOOP_MODEL; else process.env.AI_GATEWAY_LOOP_MODEL = prevLoop;
+  }
+
   console.log("close-loop.test.js OK");
 }
 
