@@ -126,9 +126,11 @@ function promptFor(scenario) {
 
 // Ordered, de-duplicated list of models to try: the configured loop model,
 // an optional explicit fallback, then the built-in default.
+// Each variable may hold a comma-separated list, so several free models can
+// be tried before a paid one.
 function modelCandidates(env) {
   const list = [env.AI_GATEWAY_LOOP_MODEL, env.AI_GATEWAY_FALLBACK_MODEL, DEFAULT_MODEL]
-    .map((m) => String(m || "").trim()).filter(Boolean);
+    .flatMap((v) => String(v || "").split(",")).map((m) => m.trim()).filter(Boolean);
   return list.filter((m, i) => list.indexOf(m) === i);
 }
 
@@ -204,7 +206,7 @@ async function handler(req, res) {
     if (outcome.fatal) break;                  // auth or request errors: moving on would not help
     fallbackFrom = fallbackFrom || model;
   }
-  return send(res, 502, lastFailure || { error: "gateway_request_failed" });
+  return send(res, 502, Object.assign(lastFailure || { error: "gateway_request_failed" }, { fallbackFrom: fallbackFrom || undefined, tried: candidates.length }));
 }
 
 // One model call. Returns { ok, result } or { ok: false, failure, fatal }.
@@ -223,7 +225,11 @@ async function attempt(model, token, body, rawTranscript) {
         max_tokens: 1800
       })
     });
-    if (!upstream.ok) return { ok: false, failure: { error: "gateway_http_error", status: upstream.status }, fatal: !RETRYABLE.has(upstream.status) };
+    if (!upstream.ok) {
+      let detail = "";
+      try { const e = await upstream.json(); detail = String((e && e.error && (e.error.message || e.error.type)) || e.message || "").slice(0, 160); } catch (error) { detail = ""; }
+      return { ok: false, failure: { error: "gateway_http_error", status: upstream.status, detail: detail || undefined }, fatal: !RETRYABLE.has(upstream.status) };
+    }
     const content = extractContent(await upstream.json());
     if (!content) return { ok: false, failure: { error: "empty_gateway_response" } };
     const parsed = parseJsonLoose(content);
