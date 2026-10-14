@@ -151,15 +151,23 @@
     gateway_request_failed: "The model gateway could not be reached.",
     malformed_gateway_response: "The model returned an unreadable answer.",
     empty_gateway_response: "The model returned an empty answer.",
+    schema_echo_response: "The model returned an unusable answer.",
     transcript_too_long: "The transcript is too long for live analysis. Trim it and try again.",
     transcript_required: "Add a transcript or load the verified demo first."
   };
 
-  function describeAnalysisError(code) {
+  // `body` is the API's error payload when available: status, detail (the
+  // gateway's own message, truncated), tried (how many models were attempted).
+  function describeAnalysisError(code, body) {
     var key = String(code || "").trim();
-    if (ANALYSIS_ERRORS[key]) return ANALYSIS_ERRORS[key];
+    var b = body || {};
+    var tried = Number(b.tried) > 1 ? " Tried " + b.tried + " models." : "";
+    if (b.status === 403 && /free tier/i.test(String(b.detail || ""))) {
+      return "The free models were busy, and this deployment has no paid gateway credits, so live analysis is unavailable right now." + tried + " The verified replay still works.";
+    }
+    if (ANALYSIS_ERRORS[key]) return ANALYSIS_ERRORS[key] + tried;
     if (/^failed to fetch$/i.test(key) || /network/i.test(key)) return "The analysis service could not be reached.";
-    return "Live analysis failed" + (key ? " (" + key + ")" : "") + ".";
+    return "Live analysis failed" + (key ? " (" + key + ")" : "") + "." + tried;
   }
 
   function qualifiesForDemoRule(correction, original, finalText, event, verifiedDemo) {
@@ -794,7 +802,7 @@
       }).then(function (response) {
         return response.json().then(function (body) { return { ok: response.ok, body: body }; });
       }).then(function (result) {
-        if (!result.ok) throw new Error(result.body.error || "analysis_failed");
+        if (!result.ok) { var apiError = new Error(result.body.error || "analysis_failed"); apiError.body = result.body; throw apiError; }
         renderAnalysis(result.body, result.body.model, { verified: false });
       }).catch(function (error) {
         if (demoData && text === demoData.transcript) {
@@ -806,7 +814,7 @@
           setStatus("Live analysis was unavailable; showing the verified bundled snapshot.", "ready");
           return;
         }
-        setStatus(describeAnalysisError(error && error.message) + " Your transcript remains in this browser.", "error");
+        setStatus(describeAnalysisError(error && error.message, error && error.body) + " Your transcript remains in this browser.", "error");
       }).finally(function () { el("analyzeLoop").disabled = false; });
     }
 
