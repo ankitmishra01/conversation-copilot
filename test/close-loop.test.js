@@ -98,6 +98,7 @@ async function run() {
 
   assert.deepStrictEqual(closeLoop.modelCandidates({ AI_GATEWAY_LOOP_MODEL: " gone/model ", AI_GATEWAY_FALLBACK_MODEL: "openai/gpt-6.1-sol-fast" }), ["gone/model", "openai/gpt-6.1-sol-fast"], "candidates are trimmed and de-duplicated");
   assert.deepStrictEqual(closeLoop.modelCandidates({}), ["openai/gpt-6.1-sol-fast"]);
+  assert.deepStrictEqual(closeLoop.modelCandidates({ AI_GATEWAY_LOOP_MODEL: "a/one, b/two ,a/one", AI_GATEWAY_FALLBACK_MODEL: "c/three" }), ["a/one", "b/two", "c/three", "openai/gpt-6.1-sol-fast"], "comma-separated lists are supported");
 
   // A withdrawn model (gateway 404) must fall through to the next candidate.
   const prevLoop = process.env.AI_GATEWAY_LOOP_MODEL;
@@ -203,7 +204,7 @@ async function run() {
     const allRes = fakeRes();
     await closeLoop.handler({ method: "POST", headers: { "x-vercel-oidc-token": "fake" }, body: { transcript } }, allRes);
     assert.strictEqual(allRes.statusCode, 502);
-    assert.deepStrictEqual(JSON.parse(allRes.body), { model: "openai/gpt-6.1-sol-fast", error: "gateway_request_failed" });
+    assert.deepStrictEqual(JSON.parse(allRes.body), { model: "openai/gpt-6.1-sol-fast", error: "gateway_request_failed", fallbackFrom: "flaky/model", tried: 3 });
   } finally {
     global.fetch = realFetch;
     delete process.env.AI_GATEWAY_FALLBACK_MODEL;
