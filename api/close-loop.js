@@ -124,6 +124,14 @@ function promptFor(scenario) {
   ].filter(Boolean).join("\n");
 }
 
+// Ordered, de-duplicated list of models to try: the configured loop model,
+// an optional explicit fallback, then the built-in default.
+function modelCandidates(env) {
+  const list = [env.AI_GATEWAY_LOOP_MODEL, env.AI_GATEWAY_FALLBACK_MODEL, DEFAULT_MODEL]
+    .map((m) => String(m || "").trim()).filter(Boolean);
+  return list.filter((m, i) => list.indexOf(m) === i);
+}
+
 function send(res, code, value) {
   if (typeof res.status === "function" && typeof res.json === "function") return res.status(code).json(value);
   res.statusCode = code;
@@ -152,27 +160,35 @@ async function handler(req, res) {
   const guard = await reserveGuard(token, body.reserveTest);
   if (!guard.ok) return send(res, 503, { error: "reserve_protected", reserve: guard });
 
-  const model = process.env.AI_GATEWAY_LOOP_MODEL || DEFAULT_MODEL;
+  // Gateway catalogs change; a configured model can disappear and the gateway
+  // answers 404. Walk the configured chain instead of failing the feature.
+  const candidates = modelCandidates(process.env);
   try {
-    const upstream = await fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: promptFor(body.scenario) },
-          { role: "user", content: `<transcript>\n${rawTranscript.trim()}\n</transcript>` }
-        ],
-        temperature: 0.1,
-        max_tokens: 1800
-      })
-    });
-    if (!upstream.ok) return send(res, 502, { error: "gateway_http_error", status: upstream.status });
+    let upstream = null, model = null, fallbackFrom = null;
+    for (let i = 0; i < candidates.length; i++) {
+      model = candidates[i];
+      upstream = await fetch(GATEWAY_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: promptFor(body.scenario) },
+            { role: "user", content: `<transcript>\n${rawTranscript.trim()}\n</transcript>` }
+          ],
+          temperature: 0.1,
+          max_tokens: 1800
+        })
+      });
+      if (upstream.ok || upstream.status !== 404 || i === candidates.length - 1) break;
+      fallbackFrom = fallbackFrom || model;
+    }
+    if (!upstream.ok) return send(res, 502, { error: "gateway_http_error", status: upstream.status, model });
     const json = await upstream.json();
     const content = json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
-    if (!content) return send(res, 502, { error: "empty_gateway_response" });
+    if (!content) return send(res, 502, { error: "empty_gateway_response", model });
     const result = normalizeAnalysis(parseJsonLoose(content), rawTranscript);
-    return send(res, 200, Object.assign(result, { model, generatedAt: new Date().toISOString() }));
+    return send(res, 200, Object.assign(result, { model, fallbackFrom: fallbackFrom || undefined, generatedAt: new Date().toISOString() }));
   } catch (error) {
     const reason = error && error.message === "no_json" ? "malformed_gateway_response" : "gateway_request_failed";
     return send(res, 502, { error: reason });
@@ -185,3 +201,4 @@ module.exports.normalizeAnalysis = normalizeAnalysis;
 module.exports.verifyQuote = verifyQuote;
 module.exports.parseJsonLoose = parseJsonLoose;
 module.exports.DEFAULT_MODEL = DEFAULT_MODEL;
+module.exports.modelCandidates = modelCandidates;
