@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vaada — AM Consulting Group</title>
+<link rel="icon" href="data:,">
 <meta name="description" content="Vaada: a voice copilot that turns promises made on Indian customer-support calls into dated, evidence-backed follow-ups and escalations.">
 <style>
 :root {
@@ -108,6 +109,14 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
   ol.transcript { max-height: 340px; }
 }
 @media (max-width: 480px) { .stats { grid-template-columns: 1fr; } .hero { padding-top: 36px; } }
+.btn.small { min-height: 44px; }
+.send-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.errors { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--danger); background: var(--danger-soft); border-radius: var(--radius); }
+.errors ul { margin: 4px 0 0; padding-left: 18px; }
+form input[aria-invalid="true"], form select[aria-invalid="true"] { border-color: var(--danger); }
+.next-date { font-size: 14px; border-left: 3px solid var(--violet-action); padding-left: 12px; margin: 12px 0 0; color: var(--ink-soft); }
+#printArea { display: none; }
+@media print { body > * { display: none !important; } #printArea { display: block !important; white-space: pre-wrap; font: 12pt/1.5 "Helvetica Neue", Arial, sans-serif; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 </head>
@@ -152,7 +161,7 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
   <h2>Try it on your own failed UPI payment</h2>
   <p class="sub">Enter the transaction and paste anything the company told you, in English or Hinglish. Vaada finds the promises, applies the RBI deadline as of today, and drafts the written complaint. It runs entirely in your browser; nothing is sent or stored.</p>
   <div class="demo">
-    <form class="panel pbody" id="tryForm" autocomplete="off">
+    <form class="panel pbody" id="tryForm" autocomplete="off" novalidate>
       <div class="formgrid">
         <label>What failed<select id="fKind"><option value="p2p">Transfer to a person (T + 1)</option><option value="merchant">Payment to a merchant (T + 5)</option></select></label>
         <label>Date of the transaction<input type="date" id="fDate" required></label>
@@ -218,6 +227,7 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
   Fictional demo: the people, bank, complaint number, and UTR are invented. RBI rules cited from <a href="https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693">RBI/2019-20/67</a> and the RBI Integrated Ombudsman Scheme, 2021. Vaada is a prototype, not legal or financial advice. Built by Ankit Mishra, AM Consulting Group.
 </div></footer>
 
+<pre id="printArea" aria-hidden="true"></pre>
 <script src="vaada.js"></script>
 <script>
 (function () {
@@ -226,6 +236,25 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var $ = function (id) { return document.getElementById(id); };
   var TITLES = ["The call", "Promises captured", "Your rights", "Follow-up and escalation"];
+  var ISO_TODAY = (function () { var t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); })();
+  function sendRow(prefix) {
+    return '<div class="send-row"><span>Send it:</span><a class="btn small" id="' + prefix + 'Wa" href="#" target="_blank" rel="noopener">WhatsApp</a><button class="btn small" type="button" id="' + prefix + 'Dl">Download .txt</button><button class="btn small" type="button" id="' + prefix + 'Pr">Print</button></div>';
+  }
+  function bindSend(prefix, getText, filename) {
+    var wa = $(prefix + 'Wa'), dl = $(prefix + 'Dl'), pr = $(prefix + 'Pr');
+    if (!wa) return;
+    var refresh = function () { wa.href = V.whatsappLink(getText()); };
+    refresh(); wa.addEventListener('focus', refresh); wa.addEventListener('mouseenter', refresh);
+    dl.addEventListener('click', function () {
+      var blob = new Blob([getText()], { type: 'text/plain;charset=utf-8' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    });
+    pr.addEventListener('click', function () { $('printArea').textContent = getText(); window.print(); });
+  }
+  function scrollTranscriptToHighlight() {
+    var ol = $('transcript'), li = ol && ol.querySelector('li.hl, li.hl-bad');
+    if (li) ol.scrollTop = Math.max(0, li.offsetTop - ol.offsetTop - 8);
+  }
 
   function renderTranscript(hl) {
     hl = hl || {};
@@ -287,6 +316,7 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
       '<button class="btn small" data-lang="hi" aria-pressed="' + (lang === "hi") + '" lang="hi">हिंदी</button><span style="flex:1"></span>' + status + '</div>' +
       '<label class="sr-only" for="draft">Drafted written complaint</label><textarea class="draft" id="draft" ' + (decision && decision.type === "editing" ? "" : "readonly") + ' lang="' + lang + '">' + esc(decision && decision.text && decision.lang === lang ? decision.text : d[lang]) + '</textarea>' +
       '<div class="toolbar" style="margin-top:10px"><button class="btn small primary" id="approve">Approve and copy</button><button class="btn small" id="edit">Edit</button><button class="btn small" id="reject">Reject</button></div>' +
+      sendRow('d') +
       '<div class="reject-row" id="rejectRow" hidden><label for="reason" class="sr-only">Reason</label><select id="reason"><option value="">Why reject?</option><option>Wrong amount or date</option><option>Tone is too strong</option><option>Want to call again first</option></select><button class="btn small" id="confirmReject">Confirm</button></div>' +
       '<ol class="ladder"><li class="' + (decision && decision.type === "approved" ? "done" : "") + '"><b>' + V.fmtDate(plan.writtenComplaint) + ': written complaint to ' + esc(fx.company.name) + '</b>Required first. Cites the complaint number, the agent’s exact words, and the RBI rule.</li>' +
       '<li><b>' + V.fmtDate(plan.ombudsmanEligible) + ': Ombudsman route opens</b>If the bank rejects the complaint or has not replied within ' + fx.escalation.waitDays + ' days, Vaada prepares a filing for the <a href="' + esc(fx.escalation.ombudsmanUrl) + '">RBI Integrated Ombudsman</a>.</li>' +
@@ -295,11 +325,16 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
   }
 
   function render() {
-    document.querySelectorAll(".steps button").forEach(function (b) { b.setAttribute("aria-selected", String(Number(b.dataset.step) === step)); });
+    document.querySelectorAll(".steps button").forEach(function (b) {
+      var sel = Number(b.dataset.step) === step;
+      b.setAttribute("aria-selected", String(sel)); b.tabIndex = sel ? 0 : -1;
+      if (sel && b.scrollIntoView) b.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
     $("stepTitle").textContent = TITLES[step];
     $("stepTag").textContent = "Step " + (step + 1) + " of 4";
     renderTranscript(highlights(step));
     $("stepBody").innerHTML = [stepCall, stepPromises, stepRights, stepFollowUp][step]();
+    scrollTranscriptToHighlight();
     $("prev").disabled = step === 0;
     $("next").textContent = step === 3 ? "Replay from start" : "Next step";
     bind();
@@ -330,9 +365,18 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
     });
     var ta = $("draft");
     if (ta) ta.addEventListener("input", function () { if (decision && decision.type === "editing") decision.text = ta.value; });
+    bindSend('d', function () { return $("draft").value; }, "vaada-complaint-" + lang + ".txt");
   }
 
-  document.querySelectorAll(".steps button").forEach(function (b) { b.addEventListener("click", function () { step = Number(b.dataset.step); render(); }); });
+  document.querySelectorAll(".steps button").forEach(function (b) {
+    b.addEventListener("click", function () { step = Number(b.dataset.step); render(); });
+    b.addEventListener("keydown", function (e) {
+      var map = { ArrowRight: step + 1, ArrowLeft: step - 1, Home: 0, End: 3 };
+      if (!(e.key in map)) return;
+      e.preventDefault(); step = Math.min(3, Math.max(0, map[e.key])); render();
+      var nb = document.querySelector('.steps button[data-step="' + step + '"]'); if (nb) nb.focus();
+    });
+  });
   $("prev").addEventListener("click", function () { if (step > 0) { step--; render(); } });
   $("next").addEventListener("click", function () { step = step === 3 ? 0 : step + 1; if (step === 0) { decision = null; ledger = []; } render(); $("demo").scrollIntoView({ block: "start" }); });
 
@@ -343,6 +387,13 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
     $("tryAsOf").textContent = "As of " + V.fmtDate(tIso);
     $("fDate").max = tIso; $("fCall").max = tIso;
     var tryLang = "en", lastCase = null;
+    var FIELDS = { txDate: "fDate", amount: "fAmount", callDate: "fCall" };
+    function showErrors(errs) {
+      Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).removeAttribute("aria-invalid"); });
+      errs.forEach(function (e) { $(FIELDS[e.field]).setAttribute("aria-invalid", "true"); });
+      $("tryOut").innerHTML = '<div class="errors" role="alert"><b>Please check:</b><ul>' + errs.map(function (e) { return '<li>' + esc(e.message) + '</li>'; }).join('') + '</ul></div>';
+      $(FIELDS[errs[0].field]).focus();
+    }
     $("fSample").addEventListener("click", function () {
       var d = new Date(today.getTime() - 6 * 86400000).toISOString().slice(0, 10);
       $("fKind").value = "p2p"; $("fDate").value = d; $("fAmount").value = 2500; $("fBank").value = "my bank";
@@ -350,18 +401,24 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
       $("fNotes").value = "Sir aapka paisa 2 din mein wapas aa jayega. Agar nahi aaya toh hum 48 ghante mein callback karenge."; $("fName").value = "";
     });
     function out() {
-      var c = lastCase, r = V.rightsCheck(c), d = V.drafts(c);
+      var c = lastCase, r = V.rightsCheck(c), d = V.drafts(c), plan = V.escalationPlan(c, tIso);
       var ps = c.promises.length ? c.promises.map(function (p) { return '<div class="card"><div class="meta"><span class="pill info">Promise found</span><span class="pill warn">Due ' + Math.round(p.dueHours / 24 * 10) / 10 + ' days after the call</span></div><p class="q">“' + esc(p.quote) + '”</p></div>'; }).join("") : '<p class="m">No dated promise found in your notes. Vaada looks for phrases like "24 ghante mein", "3 din mein", or "within 48 hours".</p>';
       $("tryOut").innerHTML = '<div class="stats"><div class="stat"><div class="l">RBI reversal deadline</div><div class="v">' + V.fmtDate(r.reversalDue).replace(/ \d{4}$/, "") + '</div></div><div class="stat"><div class="l">Days late</div><div class="v">' + r.daysLate + '</div></div><div class="stat"><div class="l">Compensation owed</div><div class="v">' + V.rupees(r.compensation) + '</div></div></div>' +
         '<p class="rule">' + esc(c.rule.row) + '. Source: <a href="https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693">RBI circular ' + esc(c.rule.circular) + '</a>.' + (r.missed ? '' : ' The deadline has not passed yet, so no compensation is due today.') + '</p>' + ps +
         '<div class="toolbar"><button class="btn small" data-tlang="en" aria-pressed="' + (tryLang === "en") + '">English</button><button class="btn small" data-tlang="hi" aria-pressed="' + (tryLang === "hi") + '" lang="hi">हिंदी</button><span style="flex:1"></span><button class="btn small primary" id="tryCopy">Copy draft</button></div>' +
         '<label class="sr-only" for="tryDraft">Draft complaint</label><textarea class="draft" id="tryDraft" lang="' + tryLang + '">' + esc(d[tryLang]) + '</textarea>' +
-        '<p class="m" style="margin-top:8px">Send it to your bank first, in writing. If there is no reply within 30 days, the <a href="https://cms.rbi.org.in/">RBI Integrated Ombudsman</a> route opens. Not legal advice.</p>';
+        sendRow('t') +
+        '<p class="next-date"><b>What happens next.</b> Send this to your bank in writing today. If there is no reply or no fix by <b>' + V.fmtDate(plan.ombudsmanEligible) + '</b> (30 days), the <a href="https://cms.rbi.org.in/">RBI Integrated Ombudsman</a> route opens. Not legal advice.</p>';
+      bindSend('t', function () { return $("tryDraft").value; }, "vaada-complaint-" + tryLang + ".txt");
       document.querySelectorAll("[data-tlang]").forEach(function (b) { b.addEventListener("click", function () { tryLang = b.dataset.tlang; out(); }); });
       $("tryCopy").addEventListener("click", function () { try { navigator.clipboard.writeText($("tryDraft").value); $("tryCopy").textContent = "Copied"; } catch (e) {} });
     }
     $("tryForm").addEventListener("submit", function (e) {
       e.preventDefault();
+      var inp0 = { txDate: $("fDate").value, amount: $("fAmount").value, callDate: $("fCall").value };
+      var errs = V.validateInputs(inp0, tIso);
+      if (errs.length) { showErrors(errs); return; }
+      Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).removeAttribute("aria-invalid"); });
       lastCase = V.caseFromInputs({ kind: $("fKind").value, txDate: $("fDate").value, amount: $("fAmount").value, bank: $("fBank").value, utr: $("fUtr").value, complaint: $("fComplaint").value, name: $("fName").value, callDate: $("fCall").value || tIso, notes: $("fNotes").value }, tIso);
       out();
     });
