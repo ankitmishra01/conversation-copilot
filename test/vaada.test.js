@@ -18,5 +18,13 @@ exports.run = function () {
   assert.ok(d.en.includes("₹400") && d.en.includes("SR4471902") && d.en.includes(fx.promises[0].quote));
   assert.ok(d.hi.includes("₹400") && d.hi.includes("SR4471902"));
   assert.ok(!/[—–]/.test(d.en), "no em/en dashes in drafts");
+  const today = "2026-10-14";
+  assert.strictEqual(V.validateInputs({ txDate: "2026-10-10", amount: 500, callDate: "2026-10-12" }, today).length, 0);
+  assert.deepStrictEqual(V.validateInputs({ txDate: "2027-01-01", amount: 500 }, today).map(e => e.field), ["txDate"], "future transaction date");
+  assert.deepStrictEqual(V.validateInputs({ txDate: "2026-10-10", amount: 0 }, today).map(e => e.field), ["amount"], "amount required");
+  assert.deepStrictEqual(V.validateInputs({ txDate: "2026-10-10", amount: 5, callDate: "2026-10-09" }, today).map(e => e.field), ["callDate"], "call before transaction");
+  assert.ok(V.whatsappLink("a b ₹").startsWith("https://wa.me/?text=a%20b%20%E2%82%B9"));
+  const c2 = V.caseFromInputs({ kind: "p2p", txDate: "2026-10-10", amount: 1000, notes: "" }, today);
+  assert.ok(V.drafts(c2).en.includes("The amount has still not been returned."), "draft works with no promises");
   console.log("vaada tests passed");
 };

@@ -139,5 +139,23 @@
     };
   }
 
-  return { rightsCheck: rightsCheck, promiseStatus: promiseStatus, escalationPlan: escalationPlan, verifyEvidence: verifyEvidence, drafts: drafts, extractPromises: extractPromises, caseFromInputs: caseFromInputs, fmtDate: fmtDate, rupees: rupees, lineById: lineById };
+  // Plain-language checks on the try-your-case form. Dates are ISO strings.
+  function validateInputs(inp, todayIso) {
+    var errors = [];
+    var amt = Number(inp.amount);
+    if (!inp.txDate) errors.push({ field: "txDate", message: "Enter the date of the transaction." });
+    else if (inp.txDate > todayIso) errors.push({ field: "txDate", message: "The transaction date can't be in the future." });
+    if (!(amt > 0)) errors.push({ field: "amount", message: "Enter the amount that was debited, in rupees." });
+    if (inp.callDate) {
+      if (inp.callDate > todayIso) errors.push({ field: "callDate", message: "The call date can't be in the future." });
+      else if (inp.txDate && inp.callDate < inp.txDate) errors.push({ field: "callDate", message: "The call date should be on or after the transaction date." });
+    }
+    return errors;
+  }
+
+  // WhatsApp share link for a draft (WhatsApp is how most Indian consumers
+  // forward a complaint to themselves or family before sending it).
+  function whatsappLink(text) { return "https://wa.me/?text=" + encodeURIComponent(text); }
+
+  return { rightsCheck: rightsCheck, promiseStatus: promiseStatus, escalationPlan: escalationPlan, verifyEvidence: verifyEvidence, drafts: drafts, extractPromises: extractPromises, caseFromInputs: caseFromInputs, validateInputs: validateInputs, whatsappLink: whatsappLink, fmtDate: fmtDate, rupees: rupees, lineById: lineById };
 }));
